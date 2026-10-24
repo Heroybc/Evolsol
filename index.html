@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>衍时纪 · 朔望</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <section id="menu">
+    <header class="menu-head">
+      <h1>🌙 衍时纪 · 朔望月 🌕</h1>
+      <p class="tag">二十四节气与十二节日</p>
+      <div class="menu-tools">
+        <label class="pc">人数
+          <select id="playerCount">
+            <option value="2">2 人</option>
+            <option value="3" selected>3 人</option>
+            <option value="4">4 人</option>
+            <option value="5">5 人</option>
+          </select>
+        </label>
+        <button id="menuRulesBtn" class="btn">玩法规则</button>
+        <button id="menuAchBtn" class="btn">我的成就</button>
+      </div>
+    </header>
+    <div id="menuGrid"></div>
+    <div class="menu-enter">
+      <button id="menuEnterBtn" class="btn primary big">进 入</button>
+      <button id="menuStoryBtn" class="btn">故 事</button>
+    </div>
+  </section>
+
+  <section id="table" style="display:none">
+    <header id="topbar">
+      <span id="modeName" class="modename"></span>
+      <span id="ruleChip" class="rulechip"></span>
+      <button id="achBtn" class="btn tiny">成就</button>
+      <button id="rankBtn" class="btn tiny">排行</button>
+      <button id="histBtn" class="btn tiny">记录</button>
+      <button id="deckBtn" class="btn tiny">牌库</button>
+      <button id="storyBtn" class="btn tiny">故事</button>
+      <button id="rulesBtn" class="btn tiny">规则</button>
+      <button id="muteBtn" class="btn tiny ghost" title="音效开关">🔊</button>
+      <button id="quitBtn" class="btn tiny ghost">退出</button>
+    </header>
+
+    <div id="hud"></div>
+    <div id="timeline"></div>
+    <div id="opponents"></div>
+
+    <div id="me">
+      <div class="me-head" id="meHead">你的手牌</div>
+      <div id="myCards" class="card-row"></div>
+    </div>
+
+    <div id="readout"></div>
+    <div id="actions"></div>
+    <div id="log"></div>
+  </section>
+
+  <!-- ============ 衍时纪 · 闯关 ============ -->
+  <section id="rogue" style="display:none">
+    <header id="rTop">
+      <span class="r-title">🌙 衍时纪</span>
+      <span id="rProgress" class="r-progress"></span>
+      <span id="rTarget" class="r-target"></span>
+      <span id="rCoins" class="r-coins"></span>
+      <span class="r-tools">
+        <button id="rAchBtn" class="btn tiny">成就</button>
+        <button id="rRankBtn" class="btn tiny">排行</button>
+        <button id="rRulesBtn" class="btn tiny">规则</button>
+        <button id="rMuteBtn" class="btn tiny ghost" title="音效开关">🔊</button>
+        <button id="rQuitBtn" class="btn tiny ghost">退出</button>
+      </span>
+    </header>
+
+    <div id="rJokers" class="r-jokers"></div>
+    <div id="rBlindInfo" class="r-blindinfo"></div>
+    <div id="rHand" class="card-row r-hand"></div>
+    <div id="rPreview" class="r-preview"></div>
+    <div id="rActions" class="r-actions"></div>
+    <div id="rLog" class="r-log"></div>
+    <div id="rOverlay" class="r-overlay" style="display:none"></div>
+  </section>
+
+</div>
+
+<div id="modal" style="display:none"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/engine.js"></script>
+<script src="assets/fx.js"></script>
+<script src="assets/toy.js"></script>
+<script src="assets/ach.js"></script>
+<script src="assets/rogue.js"></script>
+<script src="assets/game.js"></script>
+</body>
+</html>

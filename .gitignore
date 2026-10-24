@@ -1,0 +1,41 @@
+# Local assistant workspace
+.workbuddy/
+
+# Build outputs
+dist/
+yanshiji-shuowang-toy.zip
+
+# Screenshots and temporary browser profiles
+_tools/_shots/
+_tools/_edge-profile*/
+
+# Internal design source, research notes and one-off rewrites
+背景资料-研究记录.md
+_tools/design_202410.txt
+_tools/extract_docx.py
+_tools/make_comic.py
+_tools/make_visuals_v2.py
+_tools/update_research_toy.js
+_tools/update_rules_md*.js
+_tools/rewrite_rules.js
+_tools/rename_terms.js
+_tools/clean_refs.js
+_tools/sec3_new.md
+
+# AI design boards (not needed to run the game)
+朔望月-海报视觉.miora
+朔望月-海报视觉_assets/
+
+# Older one-off simulation scripts
+_tools/sim_v2.py
+_tools/sim_point.py
+_tools/sim_v3_zero.py
+_tools/sim_16.py
+_tools/sim_rare.js
+_tools/pick_threshold.py
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc

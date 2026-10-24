@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览（内部校验用）</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body class="phase-wang">
+<div id="app">
+  <section id="table" style="display:block">
+    <header id="topbar">
+      <span id="modeName" class="modename">衍 · 朔望月</span>
+      <span id="ruleChip" class="rulechip">第 4 回合起改比十六点，爆线 20 · 庄位逐回合轮转</span>
+      <button class="btn tiny">成就</button>
+      <button class="btn tiny">排行</button>
+      <button class="btn tiny">记录</button>
+      <button class="btn tiny">牌库</button>
+      <button class="btn tiny">规则</button>
+      <button class="btn tiny ghost">退出</button>
+    </header>
+
+    <div id="hud">
+      <span class="moonmark">🌕</span>
+      <span class="chip">第 <b>4</b>/6 回合</span>
+      <span class="chip phase p-wang linkable">望段</span>
+      <span class="chip linkable">爆线 <b>20</b></span>
+      <span class="chip">奖池 <b>9</b> 金币</span>
+      <span class="chip">你有 <b>12</b> 金币</span>
+      <span class="chip">当前注 <b>2</b> 金币</span>
+      <span class="chip m3 linkable">庄 · 地猴（齐）</span>
+    </div>
+
+    <div id="opponents">
+      <div class="opp current">
+        <div class="opp-top"><span class="nm">齐<span class="zhuang">庄</span></span><span class="ch">14 金币</span></div>
+        <div class="card-row">
+          <div class="card small s-autumn"><div class="c-head">秋分</div><div class="c-order">秋4</div><div class="c-date">九月廿三</div><div class="c-digits">9·2·3</div><div class="c-point">日点 5</div></div>
+          <div class="card small back"><div class="back-inner"><span>衍</span></div></div>
+        </div>
+        <div class="opp-act">加注到 3 枚</div>
+      </div>
+      <div class="opp">
+        <div class="opp-top"><span class="nm">乔</span><span class="ch">9 金币</span></div>
+        <div class="card-row">
+          <div class="card small s-winter festival"><div class="c-head">除夕</div><div class="c-order">彩</div><div class="c-date">腊月廿九</div><div class="c-digits">1·2·2·9</div><div class="c-point">日点 11</div></div>
+          <div class="card small back"><div class="back-inner"><span>衍</span></div></div>
+        </div>
+        <div class="opp-act">跟注</div>
+      </div>
+    </div>
+
+    <div id="me">
+      <div class="me-head">你的手牌</div>
+      <div id="myCards" class="card-row">
+        <div class="card s-spring festival"><span class="c-badge">节日</span><div class="c-head">端午</div><div class="c-order">彩</div><div class="c-date">五月初五</div><div class="c-digits">5·5</div><div class="c-point">日点 5</div></div>
+        <div class="card s-winter"><div class="c-head">大雪</div><div class="c-order">冬3</div><div class="c-date">腊月初七</div><div class="c-digits">1·2·7</div><div class="c-point">日点 7</div></div>
+        <div class="card s-autumn"><div class="c-head">中秋</div><div class="c-order">彩</div><div class="c-date">八月十五</div><div class="c-digits">8·1·5</div><div class="c-point">日点 6</div></div>
+      </div>
+    </div>
+
+    <div id="readout">
+      <div class="ro-line"><span class="ro-k">明+暗</span><b>12</b> 点　·　公共牌可舍弃</div>
+      <div class="ro-line"><span class="ro-k">最佳取值</span><b class="big good">18 点</b>（计入公共牌 · 距爆线 2）</div>
+      <div class="ro-line"><span class="ro-k">节日牌</span><span class="linkable fest">端午 · 辟邪</span>　<span class="linkable fest">中秋 · 月满</span></div>
+      <div class="ro-combos"><span class="cb linkable">重日 底分 +10</span><span class="cb linkable">四时流转 倍率 +2</span><span class="cb linkable">节庆盈门 底分 +20</span></div>
+    </div>
+
+    <div id="actions">
+      <button class="btn primary">跟注 2 枚</button>
+      <button class="btn">加注</button>
+      <button class="btn warn">喝破出千</button>
+      <button class="btn danger">弃牌</button>
+      <button class="btn">梭哈</button>
+      <button class="btn life">赌 命</button>
+    </div>
+
+    <div id="log">
+      <div class="li">第 4 回合开始，月满，改比十六点。</div>
+      <div class="li hi">齐 加注到 3 枚，奖池 9 金币。</div>
+      <div class="li">乔 跟注。</div>
+      <div class="li warn">轮到你行动。</div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

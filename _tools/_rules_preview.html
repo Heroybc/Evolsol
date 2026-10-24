@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>多人模式规则预览（内部校验用）</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<div id="app">
+  <section id="menu" style="display:none">
+    <div id="menuGrid"></div>
+    <div class="menu-enter">
+      <button id="menuEnterBtn" class="btn primary big">进 入</button>
+      <button id="menuStoryBtn" class="btn" style="display:none">故 事</button>
+    </div>
+  </section>
+  <section id="table" style="display:none"></section>
+  <section id="rogue" style="display:none">
+    <header id="rTop"><span class="r-title">🌙 衍时纪</span>
+      <span id="rProgress"></span><span id="rTarget"></span><span id="rCoins"></span></header>
+    <div id="rJokers"></div><div id="rBlindInfo"></div><div id="rHand"></div>
+    <div id="rPreview"></div><div id="rActions"></div><div id="rLog"></div>
+    <div id="rOverlay" style="display:none"></div>
+  </section>
+</div>
+<div id="modal" style="display:none"></div>
+<script src="../assets/data.js"></script>
+<script src="../assets/engine.js"></script>
+<script src="../assets/fx.js"></script>
+<script src="../assets/toy.js"></script>
+<script src="../assets/ach.js"></script>
+<script src="../assets/rogue.js"></script>
+<script src="../assets/game.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+  try {
+    var mode = parseInt((location.hash || '#2').replace('#', ''), 10) || 2;
+    window.__game.modal('玩法规则', window.__game.rulesHtml(mode),
+      [{ t: '知道了', cls: 'primary', fn: function () { } }]);
+  } catch (err) {
+    document.body.insertAdjacentHTML('afterbegin',
+      '<pre style="color:#b00;padding:20px">预览出错：' + err.message + '\n' + (err.stack || '') + '</pre>');
+  }
+});
+</script>
+</body>
+</html>

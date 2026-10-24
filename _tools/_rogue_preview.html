@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>衍时纪 · 闯关界面预览（内部校验用）</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<div id="app">
+  <section id="menu" style="display:none">
+    <div id="menuGrid"></div>
+    <div class="menu-enter">
+      <button id="menuEnterBtn" class="btn primary big">进 入</button>
+      <button id="menuStoryBtn" class="btn" style="display:none">故 事</button>
+    </div>
+  </section>
+  <section id="table" style="display:none"></section>
+
+  <section id="rogue">
+    <header id="rTop">
+      <span class="r-title">🌙 衍时纪</span>
+      <span id="rProgress" class="r-progress"></span>
+      <span id="rTarget" class="r-target"></span>
+      <span id="rCoins" class="r-coins"></span>
+      <span class="r-tools">
+        <button id="rAchBtn" class="btn tiny">成就</button>
+        <button id="rRankBtn" class="btn tiny">排行</button>
+        <button id="rRulesBtn" class="btn tiny">规则</button>
+        <button id="rMuteBtn" class="btn tiny ghost">🔊</button>
+        <button id="rQuitBtn" class="btn tiny ghost">退出</button>
+      </span>
+    </header>
+    <div id="rJokers" class="r-jokers"></div>
+    <div id="rBlindInfo" class="r-blindinfo"></div>
+    <div id="rHand" class="card-row r-hand"></div>
+    <div id="rPreview" class="r-preview"></div>
+    <div id="rActions" class="r-actions"></div>
+    <div id="rLog" class="r-log"></div>
+    <div id="rOverlay" class="r-overlay" style="display:none"></div>
+  </section>
+</div>
+<div id="modal" style="display:none"></div>
+
+<script src="../assets/data.js"></script>
+<script src="../assets/engine.js"></script>
+<script src="../assets/fx.js"></script>
+<script src="../assets/toy.js"></script>
+<script src="../assets/ach.js"></script>
+<script src="../assets/rogue.js"></script>
+<script src="../assets/game.js"></script>
+<script>
+(function () {
+// 注意：必须挂在 window 上。DOMContentLoaded 在 document 触发后冒泡到 window，
+// 所以 document 上的监听器永远先于 game.js（window 监听）执行，
+// 会导致 Rogue.start() 刚显示闯关页，就被随后的 showMenu() 盖回菜单。
+window.addEventListener('DOMContentLoaded', function () {
+ try {
+  var step = (location.hash || '').replace('#', '') || 'play';
+  var RG = window.Rogue, E = window.Engine;
+  RG.start({ onExit: function () { } });
+
+  // 先摆状态、再点「进入关卡」，这样关卡是按目标大轮创建的，HUD 不会自相矛盾
+  var R = RG.state();
+  R.coins = 187;
+  R.blindsCleared = 7;
+  R.playsTotal = 29;
+  R.bestPlay = 1874200;
+  R.totalScore = 5312000;
+  R.tier = 2; R.blind = 1;
+
+  var ov = document.getElementById('rOverlay');
+  ov.children[0].children[2].children[0].onclick();
+
+  var B = RG.blind();
+
+  function joker(id) { return RG.jokers.filter(function (j) { return j.id === id; })[0]; }
+  // 无头截图专用：FX.countUp 每帧都用 performance.now() 重写 textContent，
+  // 而 --virtual-time-budget 推进虚拟时钟的节奏和真实 rAF 不一致，截图必然停在滚动中间帧
+  // （曾经因此把「预览 9,488,880 / 结算 5,951,386」误判成前后不一致）。
+  // renderResult 在起动画之前，已经先把真实终值写进 .r-gain 了，所以这里直接停掉滚动即可，
+  // 拿到的就是引擎算出来的确定值 —— 不再依赖动画跑到哪一帧。
+  function freezeNumbers() {
+    if (window.FX && FX.countUp) FX.countUp = function () { };
+  }
+  freezeNumbers();
+  if (step !== 'plain') {
+    R.jokers.push({ def: joker('xiazhi'), cost: 50 });
+    R.jokers.push({ def: joker('duiying'), cost: 50 });
+    R.jokers.push({ def: joker('lianhuan'), cost: 80 });
+    R.jokers.push({ def: joker('taiyi'), cost: 120 });
+    R.jokers.push({ def: joker('lunhui'), cost: 120 });
+    R.relics.push(RG.relics[2]);
+    R.relics.push(RG.relics[5]);
+    R.up['顺子'] = 2;
+    R.up['同花'] = 1;
+  }
+
+  if (step === 'shop') {
+    RG.render();
+    RG.openShop();
+  } else if (step === 'crazy') {
+    // v2.1：「疯狂翻倍」五张全挂 + 一手能同时成立九同/八同/七同的牌
+    function C(nm) { return window.DECKS.mode2.filter(function (c) { return c.name === nm; })[0]; }
+    R.jokers.length = 0;
+    ['chonglou', 'jishu', 'zhoutian', 'bayin', 'wending'].forEach(function (id, i) {
+      R.jokers.push({ def: joker(id), cost: 80 + i * 10 });
+    });
+    R.relics.length = 0; R.up = {};
+    B.hand = ['立春', '雨水', '小雪', '冬至', '社日', '春分', '清明', '谷雨'].map(function (nm, i) {
+      return Object.assign({}, C(nm), { uid: 'pv' + i });
+    });
+    B.sel = [0, 1, 2, 3, 4];
+    RG.render();
+    var res2 = RG.scoreOf([B.hand[0], B.hand[1], B.hand[2], B.hand[3], B.hand[4]], []);
+    RG.renderResult(res2, res2.hands.length ? res2.hands.join(' · ') : '散牌');
+  } else if (step === 'rules' || step === 'rulesrare') {
+    document.getElementById('rOverlay').style.display = 'flex';
+    document.getElementById('rOverlay').innerHTML =
+      '<div class="mbox"><h2>衍时纪 · 玩法规则</h2><div class="mbody">' +
+      RG.rulesHtml() + '</div><div class="mfoot"><button class="btn primary">知道了</button></div></div>';
+    if (step === 'rulesrare') {
+      // 无头截图没法手动滚动，直接定位到稀有牌型表那一段
+      var body = document.querySelector('.mbody');
+      var hs = body.querySelectorAll('h3');
+      for (var i = 0; i < hs.length; i++) {
+        if (hs[i].textContent.indexOf('稀有牌型') >= 0) { body.scrollTop = hs[i].offsetTop - 24; break; }
+      }
+    }
+  } else if (step === 'deck') {
+    // 「手牌 · 牌堆」面板（点真实按钮，顺便验证接线）
+    B.sel = [0, 2, 3];
+    RG.render();
+    document.getElementById('rActions').children[2].onclick();
+  } else if (step === 'throw') {
+    // 真的按一次「打出」，用于截出牌动画的中途帧（配合较小的 virtual-time-budget）
+    B.sel = [0, 1, 2, 3, 4];
+    RG.render();
+    RG.playCards();
+  } else {
+    // 正常打牌界面：选 3 张，用真实结算渲染器出数
+    B.sel = [0, 2, 3];
+    B.playsLeft = 3;
+    RG.render();
+    var res = RG.scoreOf([B.hand[0], B.hand[2], B.hand[3]], []);
+    RG.renderResult(res, res.hands.length ? res.hands.join(' · ') : '散牌');
+  }
+  window.__rogue = RG;
+  window.__scoreOf = function (cards) { return RG.scoreOf(cards, []); };
+ } catch (err) {
+   document.body.insertAdjacentHTML('afterbegin',
+     '<pre style="color:#b00;padding:20px;font-size:16px">预览脚本出错：' + err.message + '\n' + (err.stack || '') + '</pre>');
+ }
+});
+})();
+</script>
+</body>
+</html>
