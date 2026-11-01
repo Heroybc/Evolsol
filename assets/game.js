@@ -41,6 +41,7 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const rnd = n => Math.floor(Math.random() * n);
   const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const nfmtInt = n => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
   function shuffle(a) {
     a = a.slice();
@@ -88,7 +89,7 @@
       known: { shuo: null, wang: null },
       mystery: null, dealer: dealerBase, dealerBase: dealerBase,
       monkeyIdx: monkeyIdx, swapsLeft: 0, log: [], lastShowdown: null,
-      history: [], today: E.todayCardName(deck), locked: true
+      history: [], today: E.todayCardName(deck), locked: true, roundStartChips: []
     };
     if (modeId === 1) {
       log('开桌：' + M.name + '，' + numPlayers + ' 人，每人 12 金币。');
@@ -111,6 +112,14 @@
     roLastScore = null; roLastComboKey = ''; roLastBest = null;
     S.achSnapshot = window.Ach ? Object.assign({}, window.Ach.S.unlocked) : {};
     if (window.Ach) window.Ach.fire({ type: 'gameStart', mode: modeId });
+    if (window.Replay) {
+      try {
+        Replay.begin({
+          kind: 'multi', modeId: modeId, modeName: M.name, rule: M.meta, desc: M.desc,
+          players: players.map(p => p.name)
+        });
+      } catch (e) { }
+    }
     showTable();
     nextRound();
   }
@@ -166,6 +175,8 @@
     }
     S.pot += ticket;
     if (S.carry) { S.pot += S.carry; log('上一回合流局留下的 ' + S.carry + ' 金币滚进本回合的奖池。', 'hi'); S.carry = 0; }
+    // 战报用：本回合下注前的金币快照（已扣门票），结算时算「本回合赚/亏」
+    S.roundStartChips = S.players.map(p => p.chips);
 
     // 庄位：原版固定为地猴，衍时逐回合轮转，衍时纪整局固定
     if (S.modeId === 2) {
@@ -429,18 +440,21 @@
     if (window.FX) FX.play('showdown');
     const alive = S.players.filter(x => !x.out && !x.folded);
     if (alive.length === 1) {
+      const wonPot = S.pot;
       alive[0].chips += S.pot;
       log(alive[0].name + ' 无人应战，收下 ' + S.pot + ' 金币。', 'hi');
       S.pot = 0;
-      return finishRound([{ pl: alive[0], r: playerResult(alive[0]), win: true }]);
+      return finishRound([{ pl: alive[0], r: playerResult(alive[0]), win: true }],
+        { winners: [alive[0].idx], pot: wonPot, note: '其余人都弃牌了，无人应战。' });
     }
     const rows = alive.map(pl => ({ pl: pl, r: playerResult(pl), win: false }));
     const valid = rows.filter(x => x.r.power >= 0);
     if (valid.length === 0) {
+      const lostPot = S.pot;
       log('全员爆点，月晦 —— 池子滚入下一回合。', 'warn');
       if (window.Ach) window.Ach.fire({ type: 'moonless' });
       S.carry = S.pot; S.pot = 0;
-      return finishRound(rows);
+      return finishRound(rows, { winners: [], pot: lostPot, note: '全员爆点（月晦），奖池滚进下一回合。' });
     }
     const meRow0 = rows.filter(x => x.pl.idx === 0)[0];
     const meChipsBefore = S.players[0].chips;
@@ -546,10 +560,73 @@
       if (meWon) { FX.play('win'); FX.confetti(); FX.flash('gold'); }
       else if (meBust) { FX.play('bust'); FX.flash('red'); FX.shake($('me')); }
     }
-    finishRound(rows);
+    finishRound(rows, {
+      winners: winners.map(w => w.pl.idx),
+      pot: potWas,
+      decidedBy: decidedBy,
+      note: ''
+    });
   }
 
-  function finishRound(rows) {
+  /** 把本回合结算写进战报：金币前后对比 + 每个玩家的牌型/得分 + 决胜依据 */
+  function logShowdownStep(rows, meta) {
+    if (!window.Replay || !Replay.active()) return;
+    try {
+      const g = '第 ' + S.round + ' 回合 · ' + (S.phaseLabel === '朔' ? '🌙 朔段' : '🌕 望段');
+      const winners = (meta && meta.winners) || [];
+      const winNames = winners.map(i => S.players[i].name).filter(Boolean);
+      const before = S.roundStartChips || [];
+      const rowsBy = {};
+      for (const x of rows) rowsBy[x.pl.idx] = x;
+
+      const table = {
+        head: ['玩家', '本回合', '金币（下注前 → 结算后）', '结果'],
+        rows: S.players.map(pl => {
+          const x = rowsBy[pl.idx];
+          let power = '—';
+          if (x) power = x.r.powerText;
+          else if (pl.folded) power = '弃牌';
+          else if (pl.out) power = '已出局';
+          const b = before[pl.idx] != null ? before[pl.idx] : pl.chips;
+          const res = winners.indexOf(pl.idx) >= 0 ? '赢' :
+            (pl.out ? '出局' : (pl.folded ? '弃牌' : '—'));
+          return [pl.name, power, b + ' → ' + pl.chips, res];
+        })
+      };
+
+      let body = rows.map(x => x.pl.name + ' ' + x.r.powerText).join('　|　');
+      const me = rowsBy[0];
+      let note = (meta && meta.note) || '';
+      if (me && me.r.kind === 'shape' && me.r.score) {
+        body += '　·　你的牌型：' + (me.r.hands.join('、') || '散牌') +
+          '；底分 ' + nfmtInt(me.r.score.chips) + ' × 倍率 ' + fmtNum(me.r.score.mult) +
+          ' × 连乘 ' + fmtNum(me.r.score.times) + ' = ' + nfmtInt(me.r.score.score);
+      } else if (me && me.r.kind === 'shape' && me.r.poker) {
+        body += '　·　你的牌型：' + me.r.poker.name;
+      } else if (me && me.r.kind === 'number') {
+        body += '　·　你的点数：' + me.r.powerText;
+      }
+      if (meta && meta.decidedBy) note = '同为一种结果，比「' + meta.decidedBy + '」分出高低。' +
+        (note ? ' ' + note : '');
+
+      Replay.step({
+        g: g, k: 'result',
+        t: winners.length
+          ? '第 ' + S.round + ' 回合结算 · ' + winNames.join('、') + ' 赢下 ' + nfmtInt((meta && meta.pot) || 0) + ' 金币'
+          : '第 ' + S.round + ' 回合结算 · 月晦（全员爆点）',
+        tag: winners.indexOf(0) >= 0 ? '你赢了' : '',
+        body: body,
+        table: table,
+        note: note
+      });
+    } catch (e) {
+      if (window.console && console.warn) console.warn('[战报] 结算步骤写入失败：', e);
+    }
+  }
+
+  function fmtNum(v) { return String(Math.round((Number(v) || 0) * 100) / 100); }
+
+  function finishRound(rows, meta) {
     S.lastShowdown = { rows: rows, phase: S.phaseLabel, rule: S.phaseRule, hidden: S.phaseHidden };
     if (S.modeId === 3 && S.phaseHidden) {
       const k = S.round < S.mode.switchAt ? 'shuo' : 'wang';
@@ -561,6 +638,7 @@
     }
     S.locked = true;
     renderAll();
+    logShowdownStep(rows, meta);
 
     // 模式一：以地猴为胜负判定目标
     if (S.modeId === 1) {
@@ -589,6 +667,32 @@
       (S.modeId === 1 && p.idx === S.monkeyIdx ? '<span class="zhuang">地猴</span>' : '') +
       '<b>' + p.chips + ' 金币</b></div>').join('');
 
+    // 先把本局战报落盘，结算面板里的「战报 · 复盘」直接读这一份
+    const monkey = S.modeId === 1 ? S.players[S.monkeyIdx] : null;
+    const won = S.modeId === 1
+      ? (S.outcome ? S.outcome === 'win' : me.chips > monkey.chips)
+      : !!(rank[0] && rank[0].idx === 0);
+    if (window.Replay) {
+      try {
+        const lines = [
+          '你 ' + me.chips + ' 金币' + (monkey ? '　·　地猴 ' + monkey.chips + ' 金币' : ''),
+          '排名 ' + (rank.findIndex(p => p.idx === 0) + 1) + ' / ' + rank.length
+        ];
+        if (S.bestRoundScore) lines.push('最高单回合得分 ' + nfmtInt(S.bestRoundScore) + ' 分');
+        Replay.finish({
+          outcome: won ? 'win' : 'lose',
+          headline: won ? '你赢下了这一局。' : '你没能赢下这一局。',
+          score: me.chips, scoreLabel: '最终金币',
+          lines: lines,
+          table: {
+            head: ['#', '玩家', '金币'],
+            rows: rank.map((p, i) => [String(i + 1), p.name, nfmtInt(p.chips)])
+          },
+          note: S.modeId === 1 ? '模式一以地猴为胜负目标：地猴出局即胜，你先出局即负。' : ''
+        });
+      } catch (e) { }
+    }
+
     // 成就结算（含本局新解锁）
     let newly = [];
     if (window.Ach) {
@@ -608,6 +712,7 @@
 
     const btns = [
       { t: '再来一局', fn: function () { closeModal(); showMenu(); }, cls: 'primary' },
+      { t: '战报 · 复盘', fn: function () { if (window.Replay) Replay.openLast(); }, cls: 'ghost' },
       { t: '看排行榜', fn: showRank, cls: 'ghost' },
       { t: '看成就', fn: showAch, cls: 'ghost' }
     ];
@@ -1460,6 +1565,21 @@
     e.round = S.round; e.phase = S.phaseLabel;
     S.history.push(e);
     if (S.history.length > 500) S.history.shift();
+
+    // 战报：发牌与每个人的行动各记一步；回合结算由 finishRound 统一记（带金币前后对比）
+    if (window.Replay && Replay.active()) {
+      try {
+        const g = '第 ' + S.round + ' 回合 · ' + (S.phaseLabel === '朔' ? '🌙 朔段' : '🌕 望段');
+        if (e.kind === 'deal') {
+          Replay.step({ g: g, k: 'deal', t: e.text, body: e.detail });
+        } else if (e.kind === 'action') {
+          Replay.step({
+            g: g, k: 'action', t: e.action, who: e.who,
+            why: e.why, view: e.view, me: !!e.human
+          });
+        }
+      } catch (err) { }
+    }
   }
 
   function valOf(c) { return S.modeId === 1 ? c.sum : c.dayPoint; }
@@ -1650,6 +1770,9 @@
     $('rankBtn').onclick = function () { showRank(); };
     $('menuRulesBtn').onclick = function () { showRules(selectedMode); };
     if ($('menuAchBtn')) $('menuAchBtn').onclick = function () { showAch(); };
+    if ($('menuReportBtn')) $('menuReportBtn').onclick = function () {
+      if (window.Replay) Replay.openList();
+    };
     if ($('menuEnterBtn')) $('menuEnterBtn').onclick = enterGame;
     if ($('menuStoryBtn')) $('menuStoryBtn').onclick = function () { showComic(null); };
     if ($('storyBtn')) $('storyBtn').onclick = function () { showComic(null); };

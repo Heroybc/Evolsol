@@ -52,6 +52,7 @@ load('assets/engine.js');
 load('assets/fx.js');
 load('assets/toy.js');
 load('assets/ach.js');
+load('assets/replay.js');
 load('assets/rogue.js');
 load('assets/game.js');
 
@@ -918,7 +919,13 @@ console.log('\n[13] 衍时纪 · 整局模拟（贪心打法，含商店购买�
           last.onclick();
           continue;
         }
-        if (/破局|止步/.test(title)) { endTitle = title; foot.children[1].onclick(); break; }
+        if (/破局|止步/.test(title)) {
+          endTitle = title;
+          // 结算面板除了「再来一局 / 返回菜单」还多了「战报 · 复盘」，按文字点返回，别依赖下标
+          const back = foot.children.filter(b => /返回菜单/.test(b.textContent))[0] || foot.children[1];
+          back.onclick();
+          break;
+        }
         panels.push(title);
         foot.children[0].onclick();     // 其余面板都点第一个（主按钮）
         continue;
@@ -1123,6 +1130,75 @@ console.log('\n[11] 成就与 B站 Toy 云桥');
   }
   ok(true, '整局在成就埋点开启后仍能正常跑完');
   ok(A.S.stats.games >= 1, '结算事件已计入统计（games=' + A.S.stats.games + '）');
+
+  console.log('\n[14] 战报：记录、复盘与导出');
+  const RP = window.Replay;
+  ok(!!RP && typeof RP.openLast === 'function' && typeof RP.toMarkdown === 'function',
+    'window.Replay 已挂载（begin / step / finish / 导出）');
+
+  // ---- 多人局：上一节刚跑完一局，检查自包含快照 ----
+  const multi = RP.last();
+  ok(!!multi && multi.kind === 'multi', '多人局已留下战报（' + (multi && multi.modeName) + '）');
+  ok(multi.steps.some(s => s.k === 'deal'), '战报含发牌步骤');
+  ok(multi.steps.some(s => s.k === 'action' && s.why && s.view), '战报的行动步骤带「当时怎么想 / 看得到」');
+  ok(multi.steps.some(s => s.k === 'result' && s.table && s.table.rows.length >= 2), '战报含带金币前后对比的结算表');
+  ok(multi.result && multi.result.score != null && multi.result.table,
+    '战报含最终成绩与排名表');
+  const md = RP.toMarkdown(multi);
+  ok(md.indexOf('# 衍时纪 · 朔望月 · 战报') === 0, 'Markdown 以战报标题开头');
+  ok(md.indexOf('当时怎么想') > 0 && md.indexOf('当时看得到') > 0, 'Markdown 保留判断依据');
+  ok(md.indexOf('| 玩家 |') > 0 || md.indexOf('| # |') > 0, 'Markdown 含表格');
+  const json = RP.toJson(multi);
+  ok(JSON.parse(json).id === multi.id, 'JSON 可解析且 id 一致');
+
+  RP.open(multi);
+  ok(document.getElementById('rpOverlay').innerHTML.indexOf('rp-shell') > 0, '复盘浮层已渲染');
+  ok(document.getElementById('rpOverlay').innerHTML.indexOf('总览') > 0, '复盘含总览页');
+  RP._go(2);
+  ok(RP._state().view.i === 2, '可翻到第 2 步');
+  RP.close();
+  ok(RP._state().view === null, '关闭后清空复盘状态');
+
+  // ---- 闯关局：一次出牌要带算式、明细表与「本手最优」对比 ----
+  els['rogue'] = makeEl('div'); els['menu'] = makeEl('div'); els['table'] = makeEl('div');
+  ['rOverlay', 'rHand', 'rActions', 'rLog', 'rPreview', 'rBlindInfo', 'rJokers',
+    'rProgress', 'rTarget', 'rCoins'].forEach(id => els[id] = makeEl('div'));
+  timers.length = 0;
+  RP.close();
+  const RG = window.Rogue;
+  RG.start({ onExit: function () { } });
+  ok(!!RP.active() && RP.active().kind === 'rogue', '闯关开局即开始录制');
+
+  const ov = els['rOverlay'];
+  ov.children[0].children[2].children[0].onclick();     // 开始这一关
+  const B = RG.blind();
+  const beforeSteps = RP.active().steps.length;
+  B.sel = [0, 1, 2, 3, 4];
+  RG.playCards();
+  drain();
+
+  const act = RP.active();
+  ok(act.steps.length > beforeSteps, '出牌写入战报');
+  const play = act.steps.filter(s => s.k === 'play').pop();
+  ok(!!play && /底分 .* × 倍率 .* = /.test(play.formula), '出牌步骤带完整算式：' + (play && play.formula));
+  ok(!!play.table && play.table.rows.length >= 4, '出牌步骤带来源明细表（' + (play && play.table.rows.length) + ' 行）');
+  ok(!!play.best && typeof play.best.text === 'string', '出牌步骤带「本手最优」对比');
+  ok(play.cards.length === 5 && play.hands.length > 0, '出牌步骤记下打出的牌与牌型');
+
+  // 强制失败，验证结算落盘与自动关卡汇总
+  B.score = 0; B.target = 9999999; B.playsLeft = 1; B.sel = [0, 1, 2];
+  RG.playCards();
+  drain();
+  const run = RP.last();
+  ok(!!run && run.kind === 'rogue' && run.saved !== false, '失败后战报已落盘');
+  ok(run.steps.some(s => s.k === 'clear') === false, '没过关时不会记「过关」');
+  ok(!!run.result.table && run.result.table.rows.length >= 1, '闯关战报自动汇总每一关');
+  ok(run.result.table.rows[0][3] === '未通过', '汇总表标出「未通过」');
+  ok(RP.toMarkdown(run).indexOf('## 第 1 大轮 · 小关') > 0, 'Markdown 按关卡分组');
+
+  RP.openLast();
+  ok(document.getElementById('rpOverlay').innerHTML.indexOf('rp-detail') > 0, '可打开闯关战报');
+  RP.close();
 
   console.log('\n' + (fails === 0 ? '全部通过 ✓' : fails + ' 项失败 ✗'));
   process.exit(fails === 0 ? 0 : 1);

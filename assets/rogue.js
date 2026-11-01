@@ -32,6 +32,9 @@
     return x;
   }
   function ach(evt) { if (window.Ach) { try { window.Ach.fire(evt); } catch (e) { } } }
+  function rp(fn) { if (window.Replay) { try { fn(window.Replay); } catch (e) { } } }
+  function rpOn() { return !!(window.Replay && window.Replay.active()); }
+  function snapCard(c) { return { n: c.name, d: c.digits.join('·'), s: c.season }; }
 
   // ============================== 数值表 ==============================
   // 目标分曲线：每大轮整体 ×2.6，轮内 小关 → 大关 → 劫 再依次抬高（×1 / ×1.45 / ×1.75）。
@@ -321,6 +324,29 @@
   }
 
   // ============================== 本关 ==============================
+  /** 战报用：当前手牌里「得分最高的一手」。
+   *  没有小满这类按手牌数加分的节令牌时，打满 5 张一定不亏，沿用 bestCombo 的 56 组；
+   *  有小满时必须把「留牌」也算进去，枚举 1–5 张的全部组合（8 张共 218 组）。 */
+  function bestPlayOf(hand) {
+    const heldMatters = R.jokers.some(j => j.def.id === 'xiaoman');
+    if (!heldMatters) return bestCombo(hand);
+    const n = hand.length, maxK = Math.min(5, n);
+    let best = null;
+    const acc = [];
+    const pick = function (start) {
+      if (acc.length) {
+        const played = acc.map(i => hand[i]);
+        const held = hand.filter((c, i) => acc.indexOf(i) < 0);
+        const r = scoreOf(played, held);
+        if (!best || r.score > best.r.score) best = { idx: acc.slice(), r: r };
+      }
+      if (acc.length === maxK) return;
+      for (let i = start; i < n; i++) { acc.push(i); pick(i + 1); acc.pop(); }
+    };
+    pick(0);
+    return best;
+  }
+
   function buildDeck() {
     return shuffle(DECKS.mode2.map((c, i) => Object.assign({}, c, { uid: 'r-' + c.name + '-' + i })));
   }
@@ -356,6 +382,22 @@
     if (!keep) renderLog(neg
       ? '本关是 <b>Boss 关（劫）</b>，附加限制：<b>' + esc(neg.text) + '</b>。目标 ' + nfmt(B.target) + ' 分。'
       : '目标 ' + nfmt(B.target) + ' 分：在 ' + B.playsLeft + ' 次出牌内打够就过关。');
+
+    if (!keep) rp(function (RP) {
+      RP.step({
+        g: '第 ' + (R.tier + 1) + ' 大轮 · ' + BLIND_NAME[R.blind],
+        k: 'blind',
+        t: '开始这一关',
+        target: B.target,
+        lines: [
+          { label: '目标分', value: nfmt(B.target), tone: 'gold' },
+          { label: '出牌', value: B.playsLeft + ' 次' },
+          { label: '弃牌', value: B.discardsLeft + ' 次' },
+          { label: '手牌', value: B.handMax + ' 张' }
+        ],
+        note: neg ? '劫 · ' + neg.n + '：' + neg.text : ''
+      });
+    });
   }
 
   function nfmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
@@ -394,6 +436,66 @@
     return out;
   }
 
+  /** 把一次出牌写进战报：算式、来源明细、与「本手最优」的差距 */
+  function recordPlay(played, best, bestNames, res, handsTxt) {
+    if (!rpOn()) return;
+    const lines = [
+      { label: '本手得分', value: nfmt(res.score), tone: 'gold' },
+      { label: '累计 / 目标', value: nfmt(B.score) + ' / ' + nfmt(B.target) },
+      { label: '剩余出牌', value: B.playsLeft + ' 次' },
+      { label: '底分 × 倍率', value: nfmt(res.chips) + ' × ' + fmtMult(res.mult) }
+    ];
+    if (res.xmult !== 1) lines.push({ label: '令牌倍率', value: '×' + fmtMult(res.xmult) });
+
+    let bestInfo = null;
+    if (best && best.r) {
+      const diff = best.r.score - res.score;
+      if (diff > 0) {
+        bestInfo = {
+          delta: diff,
+          text: '若打「' + bestNames.join('、') + '」可得 ' + nfmt(best.r.score) + ' 分（高 ' +
+            nfmt(diff) + '）' + (played.length < 5 ? '；这里按打满 5 张比较。' : '。')
+        };
+      } else {
+        bestInfo = { delta: 0, text: '这一手就是当前手牌里的最高分（' + nfmt(res.score) + ' 分）。' };
+      }
+    }
+
+    const rows = res.log.map(function (x) {
+      const type = x.k === 'chip' ? '底分' : x.k === 'mult' ? '倍率' : x.k === 'x' ? '令牌倍率' : '说明';
+      const val = x.v === '' ? '—' : (x.k === 'x' ? '×' + fmtMult(x.v) : '+' + fmtMult(x.v));
+      return [x.label, type, val];
+    });
+
+    let note = '';
+    if (B.score >= B.target) note = '这一手直接打到了目标分。';
+    else if (B.playsLeft <= 0) note = '出牌用完了，还差 ' + nfmt(B.target - B.score) + ' 分。';
+    else note = '还差 ' + nfmt(B.target - B.score) + ' 分，剩 ' + B.playsLeft + ' 次出牌。';
+
+    // 牌型可能叠出七八种，标题里只留前三种，避免把列表撑成两行
+    const titleHands = res.hands.length > 3
+      ? res.hands.slice(0, 3).join(' · ') + ' 等 ' + res.hands.length + ' 种'
+      : handsTxt;
+
+    rp(function (RP) {
+      RP.step({
+        g: '第 ' + (R.tier + 1) + ' 大轮 · ' + BLIND_NAME[R.blind],
+        k: 'play',
+        t: '第 ' + B.playsUsed + ' 次出牌 · ' + titleHands,
+        tag: '+' + nfmt(res.score),
+        score: res.score,
+        cards: played.map(snapCard),
+        hands: res.hands,
+        formula: '底分 ' + nfmt(res.chips) + ' × 倍率 ' + fmtMult(res.mult) +
+          (res.xmult !== 1 ? ' × 令牌倍率 ' + fmtMult(res.xmult) : '') + ' = ' + nfmt(res.score),
+        lines: lines,
+        table: rows.length ? { head: ['来源', '类型', '数值'], rows: rows } : null,
+        best: bestInfo,
+        note: note
+      });
+    });
+  }
+
   function playCards() {
     if (!B || B.done || B.locked) return;
     const sel = B.sel.slice().sort((a, b) => a - b);
@@ -404,6 +506,8 @@
     R.playsTotal++;
 
     const res = scoreOf(played, held);
+    const best = rpOn() ? bestPlayOf(B.hand) : null;
+    const bestNames = best ? best.idx.map(i => B.hand[i].name) : [];
     B.score += res.score;
     if (res.score > R.bestPlay) R.bestPlay = res.score;
     R.totalScore += res.score;
@@ -418,6 +522,7 @@
     B.playsLeft--;
 
     const handsTxt = res.hands.length ? res.hands.join(' · ') : '散牌';
+    recordPlay(played, best, bestNames, res, handsTxt);
     fx('showdown');
     if (res.hands.length >= 4) fx('combo', res.hands.length);
     if (window.FX && cardEls.length) {
@@ -444,12 +549,23 @@
     if (!sel.length || sel.length > 5) { renderLog('请选 1–5 张牌再弃掉。'); return; }
     if (B.discardsLeft <= 0) return;
     B.discardsLeft--;
+    const gone = sel.map(i => B.hand[i]);
     const cardEls = pickCardEls(sel);
     const anim = throwOut(cardEls, $('rHand'), 'down');
     B.hand = B.hand.filter((c, i) => sel.indexOf(i) < 0);
     B.sel = [];
     fx('fold');
     const noRedraw = !!(B.neg && B.neg.flag && B.neg.flag.noRedraw);
+    rp(function (RP) {
+      RP.step({
+        g: '第 ' + (R.tier + 1) + ' 大轮 · ' + BLIND_NAME[R.blind],
+        k: 'discard',
+        t: '第 ' + (R.discardsMax - B.discardsLeft) + ' 次弃牌 · 弃掉 ' + gone.length + ' 张',
+        cards: gone.map(snapCard),
+        lines: [{ label: '剩余弃牌', value: B.discardsLeft + ' 次' }],
+        note: noRedraw ? '劫 · 枯竭：这一关弃牌后不再补牌。' : ''
+      });
+    });
     const settle = function () {
       B.locked = false;
       if (!noRedraw) fill(B.handMax - B.hand.length);
@@ -488,6 +604,28 @@
     ach({ type: 'rogueBlind', tier: R.tier, blind: R.blind, score: B.score, coins: R.coins });
 
     const isLast = (R.tier === TIER_TARGET.length - 1 && R.blind === 2);
+
+    rp(function (RP) {
+      const lines = [
+        { label: '通关金币', value: '+' + base },
+        { label: '节令牌 / 遗物', value: bonus ? '+' + bonus : '—' },
+        { label: '利息', value: '+' + interest },
+        { label: '超额奖励', value: '+' + over },
+        { label: '合计', value: '+' + total, tone: 'gold' },
+        { label: '现有金币', value: nfmt(R.coins) }
+      ];
+      RP.step({
+        g: '第 ' + (R.tier + 1) + ' 大轮 · ' + BLIND_NAME[R.blind],
+        k: 'clear',
+        t: '过关 · 得分 ' + nfmt(B.score) + ' / 目标 ' + nfmt(B.target),
+        tag: '过关',
+        score: B.score,
+        target: B.target,
+        lines: lines,
+        note: isLast ? '最后一关：整局通关。' : ''
+      });
+    });
+
     if (isLast) { endRun(true); return; }
     if (R.blind === 2) { relicChoice(); return; }   // 破劫之后先选遗物，tier 在 afterRelic 里推进
     R.blind++;
@@ -515,6 +653,27 @@
     if (window.FX) { try { FX.confetti(win ? 140 : 0); FX.flash(win ? 'gold' : 'red'); } catch (e) { } }
     ach({ type: 'rogueEnd', tier: R.tier, blind: R.blind, coins: R.coins, win: !!win, score: R.totalScore });
     const tier = win ? TIER_TARGET.length : R.tier + 1;
+
+    // 先把这一局落成战报，结算面板的「战报 · 复盘」直接读它
+    if (window.Replay) {
+      try {
+        const jn = R.jokers.map(j => j.def.n).join('、');
+        Replay.finish({
+          outcome: win ? 'win' : 'fail',
+          headline: win ? '破局 · 走完了整个衍时纪' : '止步 · 第 ' + tier + ' 大轮',
+          score: R.totalScore, scoreLabel: '累计得分',
+          lines: [
+            '抵达：第 ' + tier + ' 大轮 · ' + BLIND_NAME[R.blind],
+            '通过关卡：' + R.blindsCleared + ' / 24',
+            '单次最高：' + nfmt(R.bestPlay) + ' 分',
+            '剩余金币：' + R.coins,
+            '节令牌：' + R.jokers.length + ' 张' + (jn ? '（' + jn + '）' : '')
+          ],
+          note: '最终成绩按剩余金币计入排行榜（和另外三个模式同一个榜）。'
+        });
+      } catch (e) { }
+    }
+
     panel(win ? '破局 · 走完了整个衍时纪' : '止步 · 第 ' + tier + ' 大轮',
       '<div class="r-res">' +
       '<p>' + (win ? '八轮二十四关，你全部通关了。' : '没打到目标分，这一局到此为止。') + '</p>' +
@@ -525,6 +684,7 @@
       '<li>通过关卡 <b>' + R.blindsCleared + '</b> / 24</li>' +
       '</ul><p class="tiny">最终成绩按剩余金币计入排行榜（和另外三个模式同一个榜）。</p></div>',
       [{ t: '再来一局', cls: 'primary', fn: function () { closePanel(); start(cb); } },
+       { t: '战报 · 复盘', cls: '', fn: function () { if (window.Replay) Replay.openLast(); } },
        { t: '返回菜单', cls: 'ghost', fn: function () { closePanel(); if (cb.onExit) cb.onExit(); } }]);
   }
 
@@ -574,6 +734,18 @@
     if (!SHOP) rollShop();
     panelKind = 'shop';
     renderShop();
+    rp(function (RP) {
+      RP.step({
+        g: '商店 · 第 ' + (R.tier + 1) + ' 大轮',
+        k: 'shop',
+        t: '进入商店',
+        lines: [
+          { label: '金币', value: nfmt(R.coins), tone: 'gold' },
+          { label: '节令牌', value: R.jokers.length + ' / ' + R.jokerMax }
+        ],
+        note: '这一轮的货已经摆好；买完点「下一关」继续。'
+      });
+    });
   }
 
   function upCost(name) { return scaleCost(40 + 25 * (R.up[name] || 0)); }
@@ -599,6 +771,18 @@
     SHOP.jokers[i] = null;
     fx('coin');
     ach({ type: 'rogueShop', jokers: R.jokers.length, coins: R.coins });
+    rp(function (RP) {
+      RP.step({
+        g: '商店 · 第 ' + (R.tier + 1) + ' 大轮', k: 'shop',
+        t: '买入 ' + def.n + ' · ' + def.s, tag: '-' + cost,
+        lines: [
+          { label: '价格', value: '-' + cost },
+          { label: '余额', value: nfmt(R.coins) },
+          { label: '节令牌', value: R.jokers.length + ' / ' + R.jokerMax }
+        ],
+        body: def.text
+      });
+    });
     renderShop(); render();
   }
   function sellJoker(i) {
@@ -607,6 +791,17 @@
     R.coins += RARITY[j.def.r].sell;
     R.jokers.splice(i, 1);
     fx('fold');
+    rp(function (RP) {
+      RP.step({
+        g: '商店 · 第 ' + (R.tier + 1) + ' 大轮', k: 'shop',
+        t: '卖出 ' + j.def.n + ' · ' + j.def.s, tag: '+' + RARITY[j.def.r].sell,
+        lines: [
+          { label: '卖出价', value: '+' + RARITY[j.def.r].sell },
+          { label: '余额', value: nfmt(R.coins) },
+          { label: '节令牌', value: R.jokers.length + ' / ' + R.jokerMax }
+        ]
+      });
+    });
     renderShop(); render();
   }
   function buyTalisman(i) {
@@ -620,6 +815,14 @@
     t.use();
     fx('coin');
     renderLog('用掉符箓「' + t.n + ' · ' + t.s + '」。');
+    rp(function (RP) {
+      RP.step({
+        g: '商店 · 第 ' + (R.tier + 1) + ' 大轮', k: 'shop',
+        t: '用掉符箓 ' + t.n + ' · ' + t.s, tag: '-' + cost,
+        lines: [{ label: '价格', value: '-' + cost }, { label: '余额', value: nfmt(R.coins) }],
+        body: t.text
+      });
+    });
     renderShop(); render();
   }
   function buyVoucher() {
@@ -633,6 +836,14 @@
     SHOP.voucher = null;
     fx('achieve');
     renderLog('买下优惠券「' + v.n + '」：' + v.text);
+    rp(function (RP) {
+      RP.step({
+        g: '商店 · 第 ' + (R.tier + 1) + ' 大轮', k: 'shop',
+        t: '买下优惠券 ' + v.n, tag: '-' + cost,
+        lines: [{ label: '价格', value: '-' + cost }, { label: '余额', value: nfmt(R.coins) }],
+        body: v.text
+      });
+    });
     renderShop(); render();
   }
   function buyUpgrade(name) {
@@ -646,6 +857,17 @@
     const types = upgradableTypes(SHOP.upgrades);
     if (types.length) SHOP.upgrades.push(types[rnd(types.length)]);
     fx('achieve');
+    rp(function (RP) {
+      RP.step({
+        g: '商店 · 第 ' + (R.tier + 1) + ' 大轮', k: 'shop',
+        t: '强化 ' + name + ' 谱 Lv.' + lv + ' → Lv.' + (lv + 1), tag: '-' + cost,
+        lines: [
+          { label: '价格', value: '-' + cost },
+          { label: '余额', value: nfmt(R.coins) },
+          { label: '效果', value: '底分 +' + UP_TIME + '，倍率 +' + UP_MULT }
+        ]
+      });
+    });
     renderShop(); render();
   }
   function rerollShop() {
@@ -653,6 +875,13 @@
     R.coins -= R.rerollCost;
     fx('deal');
     rollShop();
+    rp(function (RP) {
+      RP.step({
+        g: '商店 · 第 ' + (R.tier + 1) + ' 大轮', k: 'shop',
+        t: '刷新商店', tag: '-' + R.rerollCost,
+        lines: [{ label: '价格', value: '-' + R.rerollCost }, { label: '余额', value: nfmt(R.coins) }]
+      });
+    });
     renderShop(); render();
   }
   function leaveShop() {
@@ -679,6 +908,14 @@
     if (R.blind === 2) return;
     const t = TALISMANS[rnd(TALISMANS.length)];
     // 跳过的奖励：直接拿到一个符箓的效果（当作立刻用掉）
+    rp(function (RP) {
+      RP.step({
+        g: '第 ' + (R.tier + 1) + ' 大轮 · ' + BLIND_NAME[R.blind],
+        k: 'skip',
+        t: '跳过这一关',
+        note: '没有通关金币，换到一张符箓。'
+      });
+    });
     closePanel();
     R.blind++;
     beginBlind(false);
@@ -695,9 +932,26 @@
     for (let i = 0; i < 3 && pool.length; i++) three.push(pool.splice(rnd(pool.length), 1)[0]);
     const btns = three.map(r => ({
       t: r.n + '：' + r.text, cls: 'primary',
-      fn: function () { R.relics.push(r); if (r.apply) r.apply(R); fx('achieve'); closePanel(); afterRelic(); }
+      fn: function () {
+        R.relics.push(r); if (r.apply) r.apply(R);
+        fx('achieve');
+        rp(function (RP) {
+          RP.step({
+            g: '第 ' + (R.tier + 1) + ' 大轮 · 劫', k: 'relic',
+            t: '收下遗物 ' + r.n,
+            body: r.text,
+            note: '遗物最多带 4 件，本局永久生效。'
+          });
+        });
+        closePanel(); afterRelic();
+      }
     }));
-    btns.push({ t: '都不要', cls: 'ghost', fn: function () { closePanel(); afterRelic(); } });
+    btns.push({ t: '都不要', cls: 'ghost', fn: function () {
+      rp(function (RP) {
+        RP.step({ g: '第 ' + (R.tier + 1) + ' 大轮 · 劫', k: 'relic', t: '没有收遗物' });
+      });
+      closePanel(); afterRelic();
+    } });
     panel('劫已破 · 收一件遗物', '<p class="tiny">遗物是全局被动，最多同时带 4 件。</p>', btns);
   }
   function afterRelic() {
@@ -1134,6 +1388,15 @@
     for (const k in E.SCORE_TABLE) R.up[k] = 0;
     SHOP = null;
     ach({ type: 'rogueStart' });
+    if (window.Replay) {
+      try {
+        Replay.begin({
+          kind: 'rogue', modeId: 4, modeName: '衍时纪',
+          rule: '8 大轮 × 3 关 · 4 次出牌 · 商店构筑',
+          desc: '单人闯关：底分 × 倍率 × 令牌倍率，8 大轮共 24 关。战报会记下每一次出牌、弃牌与商店决策。'
+        });
+      } catch (e) { }
+    }
     showRogue();
     closePanel();
     nextBlindSelect();
