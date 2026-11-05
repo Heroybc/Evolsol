@@ -70,7 +70,7 @@ console.log('\n[1] 引擎：牌面与算式校验');
   ok(by['除夕'].sum + by['大雪'].sum === 16, '算式B：除夕+大雪 = 16');
   ok(by['霜降'].sub === '九月廿三', '霜降 = 九月廿三（牌面锚点）');
   ok(by['端午'].digits.join(',') === '5,5', '端午 = 两个 5');
-  ok(window.DECKS.mode2.length === 36, '模式二副数 36 张');
+  ok(window.DECKS.mode2.length === 36, 'mode2 牌库（衍时 / 衍时纪共用）36 张');
 }
 
 console.log('\n[2] 引擎：牌型同时成立（可复用）');
@@ -175,7 +175,7 @@ console.log('\n[3] 引擎：十六点');
   const r2 = E.bestSixteen([by['重阳']], by['春节'], 1);
   ok(r2.bust === true, '重阳(18) 必爆');
 
-  // 爆线：原版 16，衍 / 衍时纪 20
+  // 爆线：原版 16，衍时 / 衍时纪 20
   const d2 = window.DECKS.mode2, b2 = {};
   d2.forEach(c => b2[c.name] = c);
   const hand = [b2['除夕'], b2['重阳']];   // 日点 11 + 9 = 20
@@ -276,7 +276,7 @@ function playGame(modeId, nPlayers) {
 }
 
 console.log('\n[4] 整局模拟（每模式 × 每人数 × 3 局）');
-for (const mode of [1, 2, 3]) {
+for (const mode of [1, 2]) {
   const totalRounds = (mode === 1 ? 8 : 6);
   for (const n of [2, 3, 4]) {
     for (let g = 0; g < 3; g++) {
@@ -306,14 +306,14 @@ console.log('\n[5] 规则面板');
   const need2 = common.concat(['六、🌙 朔段怎么比：形（牌型计分）', '八、朔段的分数怎么算',
     '九、Combo（可以同时命中多条）', '十、十二张节日牌各自的特殊效果', '十一、出千 和 喝破']);
   const need1 = common.concat(['六、🌙 朔段怎么比：牌型大小', '八、出千 和 喝破']);
-  for (const m of [1, 2, 3]) {
+  for (const m of [1, 2]) {
     const html = G.rulesHtml(m);
     const req = m === 1 ? need1 : need2;
     const miss = req.filter(s => html.indexOf(s) < 0);
     ok(miss.length === 0, `模式${m} 规则面板完整（${html.length} 字符）` + (miss.length ? ' 缺：' + miss.join('、') : ''));
-    if (m === 3) ok(html.includes('十三、本模式专属：🌙 朔 与 🌕 望 之谜') && html.includes('十二、本模式专属：过去 · 现在 · 未来'), '模式3（衍时）含三时纵轴与朔望之谜两节');
+    if (m === 2) ok(html.includes('十三、本模式专属：🌙 朔 与 🌕 望 之谜') && html.includes('十二、本模式专属：过去 · 现在 · 未来'), '模式2（衍时）含三时纵轴与朔望之谜两节');
     if (m === 1) ok(html.includes('地猴') && html.includes('地猴的金币先归零'), '模式1 规则写明地猴与胜负判定');
-    if (m === 2) ok(html.includes('庄 · 地猴') && html.includes('轮着来'), '模式2 规则写明庄 · 地猴轮转');
+    if (m === 2) ok(html.includes('整局由一位玩家执庄'), '模式2（衍时）规则写明整局固定一位执庄');
     if (m === 1) ok(!html.includes('九、Combo'), '模式1 不显示 combo 表');
     ok(html.includes('赌命'), `模式${m} 规则写明赌命`);
     ok(m === 1 ? html.includes('正好 16') : html.includes('正好 20'),
@@ -322,24 +322,24 @@ console.log('\n[5] 规则面板');
     ok(!/月晦之余|一季当令是|朔＝比形/.test(html), `模式${m} 未使用文言缩略表达`);
   }
 
-  // ---- 模式 4：衍时纪闯关的规则面板 ----
-  const r4 = G.rulesHtml(4);
-  const need4 = ['一、这一关怎么打', '二、分数怎么算：底分 × 倍率', '三、牌型与分值',
+  // ---- 模式 3：衍时纪闯关的规则面板 ----
+  const r3 = G.rulesHtml(3);
+  const need3 = ['一、这一关怎么打', '二、分数怎么算：底分 × 倍率', '三、牌型与分值',
     '四、稀有牌型：一手翻几百倍', '五、节令牌与商店', '六、金币怎么来',
     '七、劫（Boss 关）', '八、目标分为什么越来越离谱', '九、牌面与数字'];
-  const miss4 = need4.filter(s => r4.indexOf(s) < 0);
-  ok(miss4.length === 0, `模式4 规则面板九节完整（${r4.length} 字符）` + (miss4.length ? ' 缺：' + miss4.join('、') : ''));
-  ok(r4.includes('30 秒上手'), '模式4 规则面板开头有「30 秒上手」');
-  ok(r4.indexOf('undefined') < 0, '模式4 规则面板里没有任何 undefined 漏出来' +
-    (r4.indexOf('undefined') >= 0 ? '（位置 ' + r4.indexOf('undefined') + '）' : ''));
+  const miss3 = need3.filter(s => r3.indexOf(s) < 0);
+  ok(miss3.length === 0, `模式3 规则面板九节完整（${r3.length} 字符）` + (miss3.length ? ' 缺：' + miss3.join('、') : ''));
+  ok(r3.includes('30 秒上手'), '模式3 规则面板开头有「30 秒上手」');
+  ok(r3.indexOf('undefined') < 0, '模式3 规则面板里没有任何 undefined 漏出来' +
+    (r3.indexOf('undefined') >= 0 ? '（位置 ' + r3.indexOf('undefined') + '）' : ''));
   // 稀有牌型要在面板里被标成 ★ 行
-  ok(E.RARE_HANDS.every(h => r4.indexOf('★ ' + h) >= 0), '规则面板把每个稀有牌型都标了 ★');
-  ok(r4.includes('一族连档') && ['重楼', '极数', '周天', '八音', '问鼎'].every(n => r4.includes(n)),
+  ok(E.RARE_HANDS.every(h => r3.indexOf('★ ' + h) >= 0), '规则面板把每个稀有牌型都标了 ★');
+  ok(r3.includes('一族连档') && ['重楼', '极数', '周天', '八音', '问鼎'].every(n => r3.includes(n)),
     '规则面板讲清「一族连档」并点名那 5 张乘区节令牌');
-  ok(r4.includes('总分 ＝ 底分 × 倍率 × 令牌倍率') && r4.includes('连乘'),
-    '模式4 写明底分、倍率、令牌倍率三段计分');
-  ok(r4.includes('24 关') && r4.includes('8 个大轮'), '模式4 写明 8 大轮 × 3 关 = 24 关');
-  ok(r4.includes('月号是 1–12 的完整数字'), '模式4 写明月号是 1–12 单值');
+  ok(r3.includes('总分 ＝ 底分 × 倍率 × 令牌倍率') && r3.includes('连乘'),
+    '模式3 写明底分、倍率、令牌倍率三段计分');
+  ok(r3.includes('24 关') && r3.includes('8 个大轮'), '模式3 写明 8 大轮 × 3 关 = 24 关');
+  ok(r3.includes('月号是 1–12 的完整数字'), '模式3 写明月号是 1–12 单值');
 }
 
 console.log('\n[6] 交付物无外部作品引用');
@@ -423,10 +423,10 @@ console.log('\n[7.6] 菜单：故事按钮只属于「原 · 朔望月」');
   localStorage.removeItem('sw_lastMode');
   G.showMenu();
   const grid = els['menuGrid'];
-  ok(grid.children.length === 4, '菜单渲染 4 张模式卡（原 / 衍 / 衍时 / 衍时纪）');
-  // 默认选中衍（模式2）：故事按钮隐藏，进入是大按钮
-  ok(els['menuStoryBtn'].style.display === 'none', '选中衍模式时故事按钮隐藏');
-  ok(els['menuEnterBtn'].className.includes('big'), '衍模式下进入是大按钮');
+  ok(grid.children.length === 3, '菜单渲染 3 张模式卡（原 / 衍时 / 衍时纪）');
+  // 默认选中衍时（模式2）：故事按钮隐藏，进入是大按钮
+  ok(els['menuStoryBtn'].style.display === 'none', '选中衍时模式时故事按钮隐藏');
+  ok(els['menuEnterBtn'].className.includes('big'), '衍时模式下进入是大按钮');
   // 选中原版（模式1），未看过故事：大按钮是故事，小按钮是进入
   grid.children[0].onclick();
   ok(els['menuStoryBtn'].style.display !== 'none', '选中原版时故事按钮出现');
@@ -440,11 +440,11 @@ console.log('\n[7.6] 菜单：故事按钮只属于「原 · 朔望月」');
     '看过故事后：进入是大按钮');
   ok(!els['menuStoryBtn'].className.includes('big'), '看过故事后：故事是小按钮');
   // 切到衍时 / 衍时纪：故事按钮再次隐藏
+  grid.children[1].onclick();
+  ok(els['menuStoryBtn'].style.display === 'none', '切到衍时（模式2）时故事按钮再次隐藏');
   grid.children[2].onclick();
-  ok(els['menuStoryBtn'].style.display === 'none', '切到衍时（模式3）时故事按钮再次隐藏');
-  grid.children[3].onclick();
-  ok(els['menuStoryBtn'].style.display === 'none', '切到衍时纪（模式4）时故事按钮再次隐藏');
-  ok(grid.children[3].className.indexOf('m4') >= 0, '衍时纪卡片使用 m4 配色');
+  ok(els['menuStoryBtn'].style.display === 'none', '切到衍时纪（模式3）时故事按钮再次隐藏');
+  ok(grid.children[2].className.indexOf('m3') >= 0, '衍时纪卡片使用 m3 配色');
   localStorage.removeItem('sw_comic_seen');
 }
 
@@ -553,7 +553,7 @@ console.log('\n[10] 牌局记录 / 牌库 / 触发说明');
   const js = fs.readFileSync(path.join(ROOT, 'assets/game.js'), 'utf8');
   ok(js.includes('onclick="__tip('), '牌型 / combo 渲染成可点击元素');
 
-  playRounds(3, 3, 2);           // 衍时纪 · 朔望月，打两个回合后停在摊牌界面
+  playRounds(2, 3, 2);           // 衍时 · 朔望月，打两个回合后停在摊牌界面
   const S = G.state();
   const acts = S.history.filter(e => e.kind === 'action');
   ok(S.history.some(e => e.kind === 'deal'), '有发牌记录');
@@ -566,7 +566,7 @@ console.log('\n[10] 牌局记录 / 牌库 / 触发说明');
   ok(acts.filter(e => !e.human).every(e => /明牌|暗牌/.test(e.view)), 'AI 的视角里含它自己的明牌与暗牌');
   ok(acts.filter(e => !e.human).every(e => e.view.indexOf('算得出：') > 0), 'AI 的视角含它算出的结果');
   const withFuture = acts.filter(e => e.view.indexOf('未来牌') >= 0);
-  ok(true, '（模式三视角含未来牌的记录：' + withFuture.length + ' 条）');
+  ok(true, '（衍时视角含未来牌的记录：' + withFuture.length + ' 条）');
 
   G.showHistory();
   const histHtml = els['modal'].children[0].children[1].innerHTML;
@@ -1097,8 +1097,7 @@ console.log('\n[11] 成就与 B站 Toy 云桥');
   A.fire({ type: 'gameEnd', mode: 1, coins: 31, outcome: 'win' });
   ok(!!A.S.unlocked.first_game && !!A.S.unlocked.rich && !!A.S.unlocked.beat_monkey, '结算解锁开天辟地 / 家财万贯 / 赢下地猴');
   A.fire({ type: 'gameStart', mode: 1 }); A.fire({ type: 'gameStart', mode: 3 });
-  A.fire({ type: 'gameStart', mode: 4 });
-  ok(!!A.S.unlocked.all_modes, '四套模式都玩过解锁「四时贯通」');
+  ok(!!A.S.unlocked.all_modes, '三种模式都玩过解锁「四时贯通」');
   ok(A.count() >= 13, '本次共解锁 ' + A.count() + ' 个成就');
 
   const panel = A.panelHtml();

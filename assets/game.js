@@ -1,8 +1,8 @@
 /* 《衍时纪 · 朔望》—— 游戏主体
  * 三种模式：
- *   1 原版朔望月   —— 中文数字牌面、前 3 回合比牌型、第 4 回合起比十六点
- *   2 朔望月 · 衍时 —— 2026 历法 + 季/序/数字/日点 + 16 条 combo
- *   3 朔望 · 衍时纪 —— 加过去/现在/未来三时纵轴；朔望规则扣置，庄家可改判（公开机制）
+ *   1 原 · 朔望月   —— 中文数字牌面、前 3 回合比牌型、第 4 回合起比十六点、单挑地猴
+ *   2 衍时 · 朔望月 —— 2026 历法 + 季/序/数字/日点 + 16 条 combo + 三时纵轴 + 朔望扣置
+ *   3 衍时纪       —— 单人闯关（小丑牌式构筑）
  */
 (function () {
   'use strict';
@@ -17,19 +17,13 @@
       meta: '8 回合 · 第 4 回合换规则 · 2–5 人'
     },
     2: {
-      id: 2, name: '衍 · 朔望月', sub: '阿拉伯数字 · 多人博弈 · 爆线 20',
-      desc: '在多人赌桌上赢金币：前 3 回合比牌型，后 3 回合比谁的点数更接近 20，超过 20 出局。牌面是 2026 年真实节气，同一批数字能同时凑出多种牌型，全部一起计分。',
-      rounds: 6, switchAt: 4, deck: 'mode2', bustLine: 20,
-      meta: '6 回合 · 第 4 回合换规则 · 2–5 人'
-    },
-    3: {
-      id: 3, name: '衍时 · 朔望月', sub: '过去 · 现在 · 未来 · 爆线 20',
-      desc: '玩法同「衍」，多一条时间轴：下一回合的公共牌提前亮给你看，前两回合的公共牌还能帮你凑 combo。朔、望两套规则扣在桌上，庄家可以偷偷改判一次。',
+      id: 2, name: '衍时 · 朔望月', sub: '过去 · 现在 · 未来 · 爆线 20',
+      desc: '在多人赌桌上赢金币：前 3 回合比牌型，后 3 回合比谁的点数更接近 20，超过 20 出局。牌面是 2026 年真实节气，同一批数字能同时凑出多种牌型，全部一起计分。多一条时间轴：下一回合的公共牌提前亮给你看，前两回合的公共牌还能帮你凑 combo；朔、望两套规则扣在桌上，庄家可以偷偷改判一次。',
       rounds: 6, switchAt: 4, deck: 'mode2', bustLine: 20,
       meta: '6 回合 · 三时纵轴 · 2–5 人'
     },
-    4: {
-      id: 4, name: '衍时纪', sub: '单人闯关 · 构筑倍率 · 8 大轮',
+    3: {
+      id: 3, name: '衍时纪', sub: '单人闯关 · 构筑倍率 · 8 大轮',
       desc: '一个人打 24 关：每关只有 4 次出牌，把分数打到目标分就过。过关拿金币进商店，买节令牌把「底分 × 倍率」滚成天文数字。稀有牌型能一手翻出几百倍。',
       rounds: 0, switchAt: 0, deck: 'mode2', bustLine: 0, rogue: true,
       meta: '8 大轮 × 3 关 · 单人闯关 · 局内构筑'
@@ -78,8 +72,7 @@
     const monkeyIdx = modeId === 1 ? 1 : -1;     // 地猴固定坐在 1 号位
     let dealerBase;
     if (modeId === 1) dealerBase = 1;            // 原版：地猴永远是庄
-    else if (modeId === 3) dealerBase = rnd(numPlayers);   // 衍时：整局固定一位执庄
-    else dealerBase = rnd(numPlayers);           // 衍时：庄位逐回合轮转
+    else dealerBase = rnd(numPlayers);           // 衍时：整局固定一位执庄
     S = {
       mode: M, modeId: modeId, deckAll: deck, deck: [],
       players: players, round: 0, pot: 0, carry: 0,
@@ -95,10 +88,6 @@
       log('开桌：' + M.name + '，' + numPlayers + ' 人，每人 12 金币。');
       log('地猴在座，由它坐庄（庄家每回合最后说话）。', 'warn');
       log('你的目标只有一个：把地猴赢下来。它出局你立刻获胜，你出局立刻落败。', 'warn');
-    } else if (modeId === 2) {
-      log('开桌：' + M.name + '，' + numPlayers + ' 人，每人 12 金币。');
-      log('「庄 · 地猴」的庄位逐回合轮转，人人都有机会执庄（庄家每回合最后说话）。');
-      log('本回合执庄：' + players[S.dealer].name + '。');
     } else {
       const flip = Math.random() < 0.5;
       S.mystery = { shuo: flip ? 'shape' : 'number', wang: flip ? 'number' : 'shape' };
@@ -134,7 +123,7 @@
     S.round++;
     if (S.round > S.mode.rounds) return endGame();
 
-    if (S.modeId === 3 && S.community.present) {
+    if (S.modeId === 2 && S.community.present) {
       S.community.past.unshift(S.community.present);
       if (S.community.past.length > 2) S.community.past.pop();
     }
@@ -147,7 +136,7 @@
       pl.roundBet = 0; pl.folded = false; pl.acted = false;
       pl.lastAction = ''; pl.accuseUsed = false; pl.lifeBet = false;
     }
-    if (S.modeId === 3) {
+    if (S.modeId === 2) {
       S.community.present = S.community.future || S.deck[p++];
       S.community.future = S.deck[p++];
     } else {
@@ -156,7 +145,7 @@
 
     const isShuo = S.round < S.mode.switchAt;
     S.phaseLabel = isShuo ? '朔' : '望';
-    if (S.modeId === 3) {
+    if (S.modeId === 2) {
       const k = isShuo ? 'shuo' : 'wang';
       S.phaseRule = S.known[k] || S.mystery[k];
       S.phaseHidden = S.known[k] === null;
@@ -178,14 +167,7 @@
     // 战报用：本回合下注前的金币快照（已扣门票），结算时算「本回合赚/亏」
     S.roundStartChips = S.players.map(p => p.chips);
 
-    // 庄位：原版固定为地猴，衍时逐回合轮转，衍时纪整局固定
-    if (S.modeId === 2) {
-      let d = S.dealerBase, guard = 0;
-      while (S.players[(S.dealerBase + S.round - 1 + guard) % S.players.length].out && guard++ < S.players.length) { }
-      d = (S.dealerBase + S.round - 1 + guard) % S.players.length;
-      S.dealer = d;
-    }
-
+    // 庄位：原版固定为地猴，衍时整局固定一位执庄（开局已定，不逐回合轮转）
     S.currentBet = 1;
     S.active = S.players.filter(x => !x.out);
 
@@ -202,7 +184,6 @@
     log('第 ' + S.round + ' 回合 · ' + moonIcon() + ' ' + S.phaseLabel + '段｜奖池 ' + S.pot +
       ' 金币｜' + S.players[first].name + ' 先说话，庄家最后收尾。');
     if (S.phaseHidden) log('本段规则还扣着：' + S.phaseLabel + '段到底比牌型还是比十六点，摊牌时才揭晓。', 'warn');
-    if (S.modeId === 2) log('本回合执庄：' + S.players[S.dealer].name + '。');
     record({
       kind: 'deal',
       text: '第 ' + S.round + ' 回合 · ' + moonIcon() + ' ' + S.phaseLabel + '段 开始发行',
@@ -289,7 +270,7 @@
       pl.acted = true; pl.lastAction = need > 0 ? '跟注 ' + need : '跟注';
       log(pl.name + (need > 0 ? ' 跟注 ' + need + ' 金币。' : ' 跟注。'));
     } else if (kind === 'raise') {
-      const cap = (S.modeId === 3 && pl.idx === S.dealer) ? 1 : 2;
+      const cap = (S.modeId === 2 && pl.idx === S.dealer) ? 1 : 2;
       const target = S.currentBet + Math.min(amount, cap);
       const need = Math.min(target - pl.roundBet, pl.chips);
       pl.chips -= need; pl.roundBet += need; S.pot += need; potGain = need;
@@ -330,7 +311,7 @@
 
   // ============================== AI ==============================
   function aiStrength(pl) {
-    const rule = (S.modeId === 3 && S.phaseHidden && pl.idx !== S.dealer && S.dealer !== 0)
+    const rule = (S.modeId === 2 && S.phaseHidden && pl.idx !== S.dealer && S.dealer !== 0)
       ? S.aiGuess : S.phaseRule;
     if (rule === 'shape') {
       const cards = [pl.open, pl.hole, S.community.present].filter(Boolean);
@@ -388,7 +369,7 @@
   // ============================== 结算 ==============================
   function combosFor(pl, cards, pool, hands) {
     if (S.modeId === 1) return [];
-    const extra = S.modeId === 3 ? S.community.past : [];
+    const extra = S.modeId === 2 ? S.community.past : [];
     return E.comboCheck(cards.concat(extra).filter(Boolean), pool, hands, { today: S.today });
   }
 
@@ -628,7 +609,7 @@
 
   function finishRound(rows, meta) {
     S.lastShowdown = { rows: rows, phase: S.phaseLabel, rule: S.phaseRule, hidden: S.phaseHidden };
-    if (S.modeId === 3 && S.phaseHidden) {
+    if (S.modeId === 2 && S.phaseHidden) {
       const k = S.round < S.mode.switchAt ? 'shuo' : 'wang';
       S.known[k] = S.mystery[k];
       log('揭晓：' + (k === 'shuo' ? '🌙 朔段' : '🌕 望段') + ' 实际比的是「' + ruleName(S.mystery[k]) + '」。', 'warn');
@@ -923,9 +904,14 @@
 
   // ---- 菜单：三种玩法单选，共用一个「进入」 ----
   let selectedMode = 2;
-  try { selectedMode = parseInt(localStorage.getItem('sw_lastMode'), 10) || 2; } catch (e) { }
+  try {
+    let v = parseInt(localStorage.getItem('sw_lastMode'), 10);
+    // 迁移旧编号：老「衍时」3 → 2，老「衍时纪」4 → 3，老「衍」2 直接并入新的衍时
+    if (v === 3) v = 2; else if (v === 4) v = 3;
+    selectedMode = v || 2;
+  } catch (e) { }
 
-  // 故事只属于「原 · 朔望月」：衍的两个模式没有故事按钮。
+  // 故事只属于「原 · 朔望月」：另外两个模式没有故事按钮。
   // 选中原版时，未看过 → 大按钮是故事、小按钮是进入；看过一次后大小互换（位置不变）。
   function updateMenuEnter() {
     const enter = $('menuEnterBtn'), story = $('menuStoryBtn');
@@ -976,7 +962,7 @@
 
   function enterGame() {
     // 衍时纪：走独立的闯关流程
-    if (selectedMode === 4) {
+    if (selectedMode === 3) {
       if (window.Rogue) {
         $('menu').style.display = 'none';
         if ($('table')) $('table').style.display = 'none';
@@ -994,13 +980,13 @@
     $('menu').style.display = 'none';
     $('table').style.display = 'block';
     $('modeName').textContent = S.mode.name;
-    // 故事只属于「原 · 朔望月」，衍的两个模式顶栏也不显示
+    // 故事只属于「原 · 朔望月」，另外两个模式顶栏也不显示
     if ($('storyBtn')) $('storyBtn').style.display = S.modeId === 1 ? '' : 'none';
   }
 
   // ---- 月相：整段状态由背景色 + 月亮标志表达 ----
   function moonIcon() {
-    if (S.modeId === 3 && S.phaseHidden) return '🌗';
+    if (S.modeId === 2 && S.phaseHidden) return '🌗';
     return S.phaseLabel === '朔' ? '🌙' : '🌕';
   }
   function moonName() {
@@ -1009,7 +995,7 @@
   }
   function phaseText() {
     const seg = S.phaseLabel === '朔' ? '🌙 朔段' : '🌕 望段';
-    if (S.modeId === 3 && S.phaseHidden) return seg + ' · 规则未揭晓';
+    if (S.modeId === 2 && S.phaseHidden) return seg + ' · 规则未揭晓';
     return seg + ' · ' + (S.phaseRule === 'shape' ? '比牌型' : '比十六点');
   }
   function dealerChip() {
@@ -1021,7 +1007,7 @@
   }
   function applyTheme() {
     const cls = S.phaseLabel === '望' ? 'phase-wang' : 'phase-shuo';
-    const hidden = (S.modeId === 3 && S.phaseHidden) ? ' phase-hidden' : '';
+    const hidden = (S.modeId === 2 && S.phaseHidden) ? ' phase-hidden' : '';
     document.body.className = cls + hidden;
   }
 
@@ -1043,7 +1029,7 @@
 
     // 三时纵轴
     const tl = $('timeline'); tl.innerHTML = '';
-    if (S.modeId === 3) {
+    if (S.modeId === 2) {
       tl.appendChild(tlCol('过去', S.community.past, 'past'));
       tl.appendChild(tlCol('现在', [S.community.present].filter(Boolean), 'now'));
       tl.appendChild(tlCol('未来', [S.community.future].filter(Boolean), 'future'));
@@ -1059,7 +1045,7 @@
         (S.players[S.turn] === pl && !pl.folded && !pl.out ? ' current' : '') +
         (pl.folded ? ' folded' : '') + (pl.out ? ' out' : '');
       el.innerHTML = '<div class="opp-top"><span class="nm">' + esc(pl.name) +
-        (S.modeId === 3 && pl.idx === S.dealer ? '<span class="zhuang">庄</span>' : '') +
+        (S.modeId === 2 && pl.idx === S.dealer ? '<span class="zhuang">庄</span>' : '') +
         '</span><span class="ch">' + pl.chips + ' 金币</span></div>';
       const row = document.createElement('div'); row.className = 'card-row';
       if (pl.out) row.innerHTML = '<div class="outs">已出局</div>';
@@ -1082,7 +1068,7 @@
     if (me.open) myRow.appendChild(cardEl(me.open, { badge: '明' }));
     if (me.hole) myRow.appendChild(cardEl(me.hole, { badge: '暗' }));
     $('meHead').innerHTML = '你的手牌' +
-      (S.modeId === 3 && S.dealer === 0 ? '<span class="zhuang">庄</span>' : '');
+      (S.modeId === 2 && S.dealer === 0 ? '<span class="zhuang">庄</span>' : '');
 
     renderReadout();
 
@@ -1106,10 +1092,6 @@
       return '目标：赢下地猴（你 ' + me.chips + ' 金币 ／ 地猴 ' + mk.chips + ' 金币）　·　' +
         phaseText() + '　·　🌙 前 3 回合比牌型，🌕 第 4 回合起比十六点';
     }
-    if (S.modeId === 2) {
-      return phaseText() + '　·　🌙 前 3 回合比牌型，🌕 后 3 回合比十六点　·　本回合执庄：' +
-        S.players[S.dealer].name + '（庄家最后说话）';
-    }
     const t = [];
     t.push('🌙 朔位规则：' + (S.known.shuo ? ruleName(S.known.shuo) : '尚未揭晓'));
     t.push('🌕 望位规则：' + (S.known.wang ? ruleName(S.known.wang) : '尚未揭晓'));
@@ -1124,7 +1106,7 @@
     const me = S.players[0], box = $('readout');
     if (!me.open || me.out) { box.innerHTML = ''; return; }
     const own = [me.open, me.hole].filter(Boolean);
-    const hidden = S.modeId === 3 && S.phaseHidden;
+    const hidden = S.modeId === 2 && S.phaseHidden;
     const html = [];
     let curScore = null, curComboList = [];
     const linkHand = hh => '<span class="linkable" title="点击看说明" onclick="__tip(\'hand\',\'' + hh + '\')">' + hh + '</span>';
@@ -1224,11 +1206,11 @@
     mk('弃牌', humanFold, 'ghost');
     mk('跟注 ' + need + ' 金币', humanCall, 'primary', need > me.chips);
     mk('加注 +1', function () { humanRaise(1); }, '', me.chips <= need);
-    mk('加注 +2', function () { humanRaise(2); }, '', me.chips <= need || (S.modeId === 3 && me.idx === S.dealer));
+    mk('加注 +2', function () { humanRaise(2); }, '', me.chips <= need || (S.modeId === 2 && me.idx === S.dealer));
     mk('梭哈（押上全部 ' + me.chips + ' 金币）', humanAllin, 'danger', me.chips <= 0);
     if (!me.usedCheat) mk('出千（1 次）', humanCheat, 'warn');
     if (!me.usedLife) mk('赌命（1 次）', humanLife, 'life');
-    if (S.modeId === 3 && S.dealer === 0 && S.swapsLeft > 0 && S.phaseHidden)
+    if (S.modeId === 2 && S.dealer === 0 && S.swapsLeft > 0 && S.phaseHidden)
       mk('改判朔望', humanSwap, 'warn');
   }
 
@@ -1294,7 +1276,7 @@
   // ============================== 规则面板 ==============================
   function rulesHtml(modeId) {
     // 衍时纪（闯关）的规则由 Rogue 自己生成
-    if (modeId === 4) return (window.Rogue && Rogue.rulesHtml) ? Rogue.rulesHtml() : '<div class="rules"><h3>衍时纪</h3><p>闯关模块未加载。</p></div>';
+    if (modeId === 3) return (window.Rogue && Rogue.rulesHtml) ? Rogue.rulesHtml() : '<div class="rules"><h3>衍时纪</h3><p>闯关模块未加载。</p></div>';
     const classic = modeId === 1;
     const L = MODES[modeId].bustLine;
     const h = [];
@@ -1333,11 +1315,8 @@
       h.push('<h3>一、这一局要做什么</h3>' +
         '<p>所有人从 <b>12 枚金币</b>开始。整局打完后，<b>手上金币最多的人获胜</b>。' +
         '金币变成 0 的人中途出局，本局余下的回合只能旁观。</p>' +
-        (modeId === 2
-          ? '<p><b>关于「庄 · 地猴」：</b>每一回合有一位玩家执庄，<b>轮着来，你也会轮到</b>。' +
-            '执庄的人在说话顺序上排在最后一位，这是位置上的好处（下注时可以看着别人先动），但不会额外给分。</p>'
-          : '<p><b>关于「庄 · 地猴」：</b>整局由一位玩家执庄，<b>可能是你也可能是对手</b>。' +
-            '执庄的人在说话顺序上排最后一位，并且掌握「朔望之谜」的答案，详见第十三节。</p>'));
+        '<p><b>关于「庄 · 地猴」：</b>整局由一位玩家执庄，<b>可能是你也可能是对手</b>。' +
+        '执庄的人在说话顺序上排最后一位，并且掌握「朔望之谜」的答案，详见第十三节。</p>');
     }
 
     /* ---------- 牌 ---------- */
@@ -1514,8 +1493,8 @@
       '</ul>' +
       '<p>别人到底有没有出千，只在结算之后才会公开。所以每一次喝破都是纯粹的判断和心理战，没有百分之百的把握。</p>');
 
-    /* ---------- 模式三 ---------- */
-    if (modeId === 3) {
+    /* ---------- 本模式专属：三时纵轴 + 朔望之谜 ---------- */
+    if (modeId === 2) {
       h.push('<h3>十二、本模式专属：过去 · 现在 · 未来</h3>' +
         '<p>桌子中上方有三格，表示时间的三条轴：</p>' +
         '<ul class="rul">' +
@@ -1546,7 +1525,7 @@
         '<p>本模式共 8 回合：🌙 朔段是第 1 到 3 回合，🌕 望段是第 4 到 8 回合。' +
         '<b>胜负只看你和地猴谁的金币多</b> —— 地猴先出局你立刻获胜，你先出局立刻落败。</p>');
     } else {
-      h.push('<h3>' + (modeId === 3 ? '十四' : '十二') + '、出局与胜负</h3>' +
+      h.push('<h3>' + (modeId === 2 ? '十四' : '十二') + '、出局与胜负</h3>' +
         '<p>金币归零的人中途出局，本局余下的回合不再参与。</p>' +
         '<p>一整局打完后，金币最多的人获胜。本模式共 6 回合（🌙 朔段 3 回合 ＋ 🌕 望段 3 回合）。</p>');
     }
@@ -1603,7 +1582,7 @@
     if (pl.open) bits.push('明牌 ' + pl.open.name + '（' + valName() + ' ' + valOf(pl.open) + '）');
     if (pl.hole) bits.push('暗牌 ' + pl.hole.name + '（' + valName() + ' ' + valOf(pl.hole) + '）');
     if (pub) bits.push('公共牌 ' + pub.name + '（' + valName() + ' ' + valOf(pub) + '）');
-    if (S.modeId === 3 && S.community.future)
+    if (S.modeId === 2 && S.community.future)
       bits.push('未来牌 ' + S.community.future.name + '（' + valName() + ' ' + valOf(S.community.future) + '，下回合才用）');
     const parts = ['看得到：' + bits.join('，')];
 
@@ -1627,7 +1606,7 @@
       parts.push('算得出：自有牌 ' + noPub + ' 点，加公共牌 ' + withPub + ' 点（爆线 ' + L + '），最佳取值 ' +
         r.total + ' 点' + (r.bust ? ' → 已经爆了' : ''));
     }
-    if (S.modeId === 3 && S.phaseHidden) parts.push('⚠ 本段规则还没揭晓，只能两套都估一遍');
+    if (S.modeId === 2 && S.phaseHidden) parts.push('⚠ 本段规则还没揭晓，只能两套都估一遍');
     return parts.join('　·　');
   }
 
@@ -1668,7 +1647,7 @@
     } else if (kind === 'zhuang') {
       body = '<p>「<b>庄 · 地猴</b>」是庄位的名字，不是固定 NPC。执庄的人<b>说话顺序排在最后</b>，' +
         '可以先看别人怎么下注再决定。</p>' +
-        (S.modeId === 3 ? '<p>在衍时 · 朔望月里，执庄的人还掌握朔望之谜的答案，并且可以改判一次。</p>' : '');
+        (S.modeId === 2 ? '<p>在衍时 · 朔望月里，执庄的人还掌握朔望之谜的答案，并且可以改判一次。</p>' : '');
     } else if (kind === 'bust') {
       body = '<p>望段里，数字<b>超过 ' + S.mode.bustLine + ' 点就爆</b>，本回合直接出局；' +
         '<b>正好 ' + S.mode.bustLine + ' 点</b>是最大的。</p>' +

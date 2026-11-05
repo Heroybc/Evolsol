@@ -30,7 +30,7 @@
     { id: 'four_seasons', name: '四时流转', tint: '春', desc: '一手三张牌分属三个不同的季。' },
     { id: 'rich', name: '家财万贯', tint: '秋', desc: '一局结束时手上金币 ≥30。' },
     { id: 'both_phases', name: '朔望同辉', tint: '冬', desc: '同一局里，朔段和望段都赢过。' },
-    { id: 'all_modes', name: '四时贯通', tint: '冬', desc: '四套模式各至少玩过一局。' },
+    { id: 'all_modes', name: '四时贯通', tint: '冬', desc: '三种模式各至少玩过一局。' },
     { id: 'rogue_first', name: '初入轮回', tint: '冬', desc: '第一次踏进「衍时纪」的闯关长廊。' },
     { id: 'rogue_half', name: '半程', tint: '秋', desc: '在衍时纪里抵达第 5 大轮。' },
     { id: 'rogue_break', name: '破局', tint: '春', desc: '走完衍时纪的全部 8 大轮 24 关。' },
@@ -145,15 +145,15 @@
       case 'gameStart':
         session.shuoWin = false; session.wangWin = false;
         st.modes[evt.mode] = (st.modes[evt.mode] || 0) + 1;
-        if (Object.keys(st.modes).length >= 4) unlock('all_modes');
+        if (Object.keys(st.modes).length >= 3) unlock('all_modes');
         break;
 
       /* ---------------- 衍时纪（闯关） ---------------- */
       case 'rogueStart':
         session.shuoWin = false; session.wangWin = false;
-        st.modes[4] = (st.modes[4] || 0) + 1;
+        st.modes[3] = (st.modes[3] || 0) + 1;
         unlock('rogue_first');
-        if (Object.keys(st.modes).length >= 4) unlock('all_modes');
+        if (Object.keys(st.modes).length >= 3) unlock('all_modes');
         break;
 
       case 'rogueBlind':
@@ -176,7 +176,7 @@
         if (evt.coins > st.bestCoins) st.bestCoins = evt.coins;
         if (evt.coins >= 30) unlock('rich');
         persist();
-        if (TB && TB.CAP.rank) { try { TB.submitScore(evt.coins, { mode: 4, tier: evt.tier, score: evt.score }); } catch (e) { } }
+        if (TB && TB.CAP.rank) { try { TB.submitScore(evt.coins, { mode: 3, tier: evt.tier, score: evt.score }); } catch (e) { } }
         break;
 
       case 'shape':

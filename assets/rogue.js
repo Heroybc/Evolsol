@@ -1391,7 +1391,7 @@
     if (window.Replay) {
       try {
         Replay.begin({
-          kind: 'rogue', modeId: 4, modeName: '衍时纪',
+          kind: 'rogue', modeId: 3, modeName: '衍时纪',
           rule: '8 大轮 × 3 关 · 4 次出牌 · 商店构筑',
           desc: '单人闯关：底分 × 倍率 × 令牌倍率，8 大轮共 24 关。战报会记下每一次出牌、弃牌与商店决策。'
         });
