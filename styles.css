@@ -192,7 +192,7 @@ h1,h2,h3,.modename,.card .c-head{
   box-shadow:0 2px 9px rgba(138,106,28,.38);
 }
 .mode-card.sel .mode-pick{display:block}
-.menu-enter{display:flex;gap:16px;justify-content:center;align-items:center;margin-top:2px}
+.menu-enter{display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:2px}
 .btn.big{font-size:1.3rem;padding:15px 72px;letter-spacing:.32em;border-radius:13px}
 
 /* 开场漫画 */
