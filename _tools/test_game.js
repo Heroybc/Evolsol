@@ -3,17 +3,31 @@ const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
 
 function makeEl(tag) {
-  return {
+  const el = {
     tagName: tag, style: {}, children: [], _html: '', textContent: '',
     disabled: false, scrollTop: 0, scrollHeight: 0, onclick: null,
-    value: '3', className: '', id: '',
+    value: '3', className: '', id: '', title: '',
     set innerHTML(v) { this._html = v; this.children = []; },
     get innerHTML() { return this._html; },
     appendChild(c) { this.children.push(c); return c; },
     insertAdjacentHTML(p, h) { this._html += h; },
     addEventListener() {}, querySelector() { return null; },
-    getBoundingClientRect() { return { width: 0, height: 0 }; }
+    getBoundingClientRect() { return { width: 0, height: 0 }; },
+    classList: {
+      add(c) {
+        const a = el.className.split(/\s+/).filter(Boolean);
+        if (a.indexOf(c) < 0) a.push(c);
+        el.className = a.join(' ');
+      },
+      remove(c) { el.className = el.className.split(/\s+/).filter(x => x && x !== c).join(' '); },
+      toggle(c, on) {
+        if (on === undefined) on = !el.classList.contains(c);
+        if (on) el.classList.add(c); else el.classList.remove(c);
+      },
+      contains(c) { return el.className.split(/\s+/).indexOf(c) >= 0; }
+    }
   };
+  return el;
 }
 
 const els = {};
@@ -57,6 +71,8 @@ load('assets/rogue.js');
 load('assets/game.js');
 
 const E = window.Engine, G = window.__game;
+// 新手引导只影响真实首访，测试里直接标记为已看过
+[1, 2, 3].forEach(m => localStorage.setItem('sw_tut_v1_' + m, '1'));
 let fails = 0;
 function ok(cond, msg) { if (cond) console.log('  ✓ ' + msg); else { fails++; console.log('  ✗ ' + msg); } }
 
@@ -257,15 +273,10 @@ function playGame(modeId, nPlayers) {
     const acts = els['actions'];
     if (!acts || !acts.children.length) { if (!timers.length) break; else continue; }
 
-    // 偶尔出千（每局最多一次）
-    if (!cheated) {
-      const cb = acts.children.find(x => /出千/.test(x.textContent) && !x.disabled);
-      if (cb && prng() < 0.35) { cb.onclick(); cheats++; cheated = true; continue; }
-    }
+    // 加注 / 手段已收进弹层，机器人只用跟注 / 梭哈 / 弃牌
     const btn = acts.children.find(b => !b.disabled && /跟注/.test(b.textContent))
-      || acts.children.find(b => !b.disabled && /加注 \+1/.test(b.textContent))
       || acts.children.find(b => !b.disabled && /梭哈/.test(b.textContent))
-      || acts.children.find(b => !b.disabled);
+      || acts.children.find(b => !b.disabled && /弃牌/.test(b.textContent));
     if (!btn) { if (!timers.length) break; else continue; }
     if (/认输/.test(btn.textContent)) folds++;
     else if (/加注/.test(btn.textContent)) raises++;
@@ -311,9 +322,9 @@ console.log('\n[5] 规则面板');
     const req = m === 1 ? need1 : need2;
     const miss = req.filter(s => html.indexOf(s) < 0);
     ok(miss.length === 0, `模式${m} 规则面板完整（${html.length} 字符）` + (miss.length ? ' 缺：' + miss.join('、') : ''));
-    if (m === 2) ok(html.includes('十三、本模式专属：🌙 朔 与 🌕 望 之谜') && html.includes('十二、本模式专属：过去 · 现在 · 未来'), '模式2（衍时）含三时纵轴与朔望之谜两节');
+    if (m === 2) ok(html.includes('十三、本模式专属：🌙 朔 与 🌕 望 之谜') && html.includes('十二、本模式专属：过去 · 现在 · 未来'), '模式2（进阶）含三时纵轴与朔望之谜两节');
     if (m === 1) ok(html.includes('地猴') && html.includes('地猴的金币先归零'), '模式1 规则写明地猴与胜负判定');
-    if (m === 2) ok(html.includes('整局由一位玩家执庄'), '模式2（衍时）规则写明整局固定一位执庄');
+    if (m === 2) ok(html.includes('整局由一位玩家执庄'), '模式2（进阶）规则写明整局固定一位执庄');
     if (m === 1) ok(!html.includes('九、Combo'), '模式1 不显示 combo 表');
     ok(html.includes('赌命'), `模式${m} 规则写明赌命`);
     ok(m === 1 ? html.includes('正好 16') : html.includes('正好 20'),
@@ -362,7 +373,7 @@ console.log('\n[7] 术语与月相表现');
   ok(!/ 道/.test(js), 'game.js 里没有残留的「 道」');
   ok(js.includes('金币'), '使用「金币」作为筹码名');
   ok(js.includes('弃牌') && !js.includes("'认输'"), '动作改为「弃牌」，不再出现「认输」');
-  ok(/梭哈（押上全部 /.test(js), '梭哈按钮标注将押上的金币数');
+  ok(/mk\('梭哈 ' \+ me\.chips/.test(js), '梭哈按钮标注将押上的金币数');
   ok(js.includes('庄 · 地猴'), '庄家显示为「庄 · 地猴」');
   ok(/'齐', '陈', '乔'/.test(js), 'AI 使用人物姓氏');
   ok(js.includes("['地猴', '齐', '陈', '乔']"), '模式一的对手名单以地猴打头');
@@ -413,7 +424,7 @@ console.log('\n[7.5] 音效与特效层');
      gjs.includes("FX.play('win')") && gjs.includes("sound: 'combo'"), '发牌 / 月相 / 爆点 / 胜利 / combo 均已挂音效');
 }
 
-console.log('\n[7.6] 菜单：故事按钮只属于「原 · 朔望月」');
+console.log('\n[7.6] 菜单：故事按钮只属于「经典 · 朔望月」');
 {
   els['menuGrid'] = makeEl('div');
   els['menuEnterBtn'] = makeEl('button');
@@ -423,13 +434,13 @@ console.log('\n[7.6] 菜单：故事按钮只属于「原 · 朔望月」');
   localStorage.removeItem('sw_lastMode');
   G.showMenu();
   const grid = els['menuGrid'];
-  ok(grid.children.length === 3, '菜单渲染 3 张模式卡（原 / 衍时 / 衍时纪）');
+  ok(grid.children.length === 3, '菜单渲染 3 张模式卡（经典 / 进阶 / 登峰）');
   // 默认选中衍时（模式2）：故事按钮隐藏，进入是大按钮
-  ok(els['menuStoryBtn'].style.display === 'none', '选中衍时模式时故事按钮隐藏');
-  ok(els['menuEnterBtn'].className.includes('big'), '衍时模式下进入是大按钮');
+  ok(els['menuStoryBtn'].style.display === 'none', '选中进阶模式时故事按钮隐藏');
+  ok(els['menuEnterBtn'].className.includes('big'), '进阶模式下进入是大按钮');
   // 选中原版（模式1），未看过故事：大按钮是故事，小按钮是进入
   grid.children[0].onclick();
-  ok(els['menuStoryBtn'].style.display !== 'none', '选中原版时故事按钮出现');
+  ok(els['menuStoryBtn'].style.display !== 'none', '选中经典时故事按钮出现');
   ok(els['menuStoryBtn'].className.includes('primary') && els['menuStoryBtn'].className.includes('big'),
     '未看过故事：故事是大按钮');
   ok(!els['menuEnterBtn'].className.includes('big'), '未看过故事：进入是小按钮');
@@ -441,10 +452,10 @@ console.log('\n[7.6] 菜单：故事按钮只属于「原 · 朔望月」');
   ok(!els['menuStoryBtn'].className.includes('big'), '看过故事后：故事是小按钮');
   // 切到衍时 / 衍时纪：故事按钮再次隐藏
   grid.children[1].onclick();
-  ok(els['menuStoryBtn'].style.display === 'none', '切到衍时（模式2）时故事按钮再次隐藏');
+  ok(els['menuStoryBtn'].style.display === 'none', '切到进阶（模式2）时故事按钮再次隐藏');
   grid.children[2].onclick();
-  ok(els['menuStoryBtn'].style.display === 'none', '切到衍时纪（模式3）时故事按钮再次隐藏');
-  ok(grid.children[2].className.indexOf('m3') >= 0, '衍时纪卡片使用 m3 配色');
+  ok(els['menuStoryBtn'].style.display === 'none', '切到登峰（模式3）时故事按钮再次隐藏');
+  ok(grid.children[2].className.indexOf('m3') >= 0, '登峰卡片使用 m3 配色');
   localStorage.removeItem('sw_comic_seen');
 }
 
@@ -500,17 +511,22 @@ console.log('\n[9] 赌命');
       const title = modal.children[0].children[0].textContent;
       const foot = modal.children[0].children[2];
       if (title === '赌命') { foot.children[1].onclick(); continue; }   // 点确认
+      if (title === '手段') {                                          // 手段弹层里点「赌命」
+        const lb = foot.children.find(b => /赌命/.test(b.textContent));
+        if (lb) { lb.onclick(); continue; }
+        foot.children[0].onclick(); continue;
+      }
       const btn = foot.children[0];
       if (btn.textContent === '再来一局') { endTitle = title; break; }
       btn.onclick(); continue;
     }
     const acts = els['actions'];
     if (!declared) {
-      const lb = acts.children.find(x => /赌命/.test(x.textContent) && !x.disabled);
+      const lb = acts.children.find(x => /手段/.test(x.textContent) && !x.disabled);
       if (lb) { lifeRound = G.state().round; lb.onclick(); declared = true; continue; }
     }
     const btn = acts.children.find(x => !x.disabled && /弃牌/.test(x.textContent))
-      || acts.children.find(x => !x.disabled);
+      || acts.children.find(x => !x.disabled && /跟注/.test(x.textContent));
     if (!btn) { if (!timers.length) break; else continue; }
     btn.onclick();
   }
@@ -542,7 +558,8 @@ function playRounds(mode, n, showdownLimit) {
     }
     const acts = els['actions'];
     const b = acts.children.find(x => !x.disabled && /跟注/.test(x.textContent))
-      || acts.children.find(x => !x.disabled);
+      || acts.children.find(x => !x.disabled && /弃牌/.test(x.textContent))
+      || acts.children.find(x => !x.disabled && /梭哈/.test(x.textContent));
     if (!b) { if (!timers.length) break; else continue; }
     b.onclick();
   }
@@ -578,7 +595,7 @@ console.log('\n[10] 牌局记录 / 牌库 / 触发说明');
   const deckHtml = els['modal'].children[0].children[1].innerHTML;
   const chips = (deckHtml.match(/class="dchip/g) || []).length;
   ok(chips === 36, '牌库显示全部 36 张牌');
-  ok(deckHtml.includes('已经露过面的是'), '牌库标注了已见 / 未见数量');
+  ok(deckHtml.includes('已经露面'), '牌库标注了已见 / 未见数量');
   ok(deckHtml.indexOf('dchip mine') > 0 || deckHtml.indexOf('mine') > 0, '牌库里高亮标记了你手上的牌');
   const seenN = (deckHtml.match(/dchip [^"]*seen/g) || []).length;
   ok(seenN >= 4 && seenN <= 36, '已见牌数量合理（' + seenN + ' 张）');
@@ -1123,7 +1140,8 @@ console.log('\n[11] 成就与 B站 Toy 云桥');
     }
     const acts = els['actions'];
     const b = acts.children.find(x => !x.disabled && /跟注/.test(x.textContent))
-      || acts.children.find(x => !x.disabled);
+      || acts.children.find(x => !x.disabled && /弃牌/.test(x.textContent))
+      || acts.children.find(x => !x.disabled && /梭哈/.test(x.textContent));
     if (!b) { if (!timers.length) break; else continue; }
     b.onclick();
   }

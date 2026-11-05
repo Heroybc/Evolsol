@@ -1,8 +1,8 @@
 /* 《衍时纪 · 朔望》—— 游戏主体
  * 三种模式：
- *   1 原 · 朔望月   —— 中文数字牌面、前 3 回合比牌型、第 4 回合起比十六点、单挑地猴
- *   2 衍时 · 朔望月 —— 2026 历法 + 季/序/数字/日点 + 16 条 combo + 三时纵轴 + 朔望扣置
- *   3 衍时纪       —— 单人闯关（小丑牌式构筑）
+ *   1 经典 · 朔望月 —— 中文数字牌面、前 3 回合比牌型、第 4 回合起比十六点、单挑地猴
+ *   2 进阶 · 朔望月 —— 2026 历法 + 季/序/数字/日点 + 16 条 combo + 三时纵轴 + 朔望扣置
+ *   3 登峰 · 衍时纪 —— 单人闯关（小丑牌式构筑）
  */
 (function () {
   'use strict';
@@ -11,20 +11,20 @@
 
   const MODES = {
     1: {
-      id: 1, name: '原 · 朔望月', sub: '中文日期 · 单挑地猴 · 爆线 16',
-      desc: '和地猴单挑：谁的筹码先输光谁输。前 3 回合比牌型，之后比谁的点数更接近 16，超过 16 直接出局。牌面是中文日期，没有万能牌。',
+      id: 1, name: '经典 · 朔望月', sub: '中文日期 · 单挑地猴 · 爆线 16',
+      desc: '和地猴单挑，前 3 回合比牌型，之后比谁更接近 16。',
       rounds: 8, switchAt: 4, deck: 'mode1', bustLine: 16,
       meta: '8 回合 · 第 4 回合换规则 · 2–5 人'
     },
     2: {
-      id: 2, name: '衍时 · 朔望月', sub: '过去 · 现在 · 未来 · 爆线 20',
-      desc: '在多人赌桌上赢金币：前 3 回合比牌型，后 3 回合比谁的点数更接近 20，超过 20 出局。牌面是 2026 年真实节气，同一批数字能同时凑出多种牌型，全部一起计分。多一条时间轴：下一回合的公共牌提前亮给你看，前两回合的公共牌还能帮你凑 combo；朔、望两套规则扣在桌上，庄家可以偷偷改判一次。',
+      id: 2, name: '进阶 · 朔望月', sub: '过去 · 现在 · 未来 · 爆线 20',
+      desc: '多人赌桌赢金币，前 3 回合比牌型，后 3 回合比谁更接近 20。',
       rounds: 6, switchAt: 4, deck: 'mode2', bustLine: 20,
       meta: '6 回合 · 三时纵轴 · 2–5 人'
     },
     3: {
-      id: 3, name: '衍时纪', sub: '单人闯关 · 构筑倍率 · 8 大轮',
-      desc: '一个人打 24 关：每关只有 4 次出牌，把分数打到目标分就过。过关拿金币进商店，买节令牌把「底分 × 倍率」滚成天文数字。稀有牌型能一手翻出几百倍。',
+      id: 3, name: '登峰 · 衍时纪', sub: '单人闯关 · 构筑倍率 · 8 大轮',
+      desc: '单人打 24 关，用牌型和节令牌把分数滚起来。',
       rounds: 0, switchAt: 0, deck: 'mode2', bustLine: 0, rogue: true,
       meta: '8 大轮 × 3 关 · 单人闯关 · 局内构筑'
     }
@@ -47,6 +47,7 @@
   // ============================== 开局 ==============================
   function startGame(modeId, numPlayers) {
     const M = MODES[modeId];
+    roOpen = false;
     const deck = DECKS[M.deck].map((c, i) => Object.assign({}, c, { uid: M.deck + '-' + i }));
     // 模式一牌库没有「序」字段：按牌库顺序补齐（节气 = 季内 1-6，节日 = 0），供「比序」决胜使用
     if (modeId === 1) {
@@ -85,17 +86,15 @@
       history: [], today: E.todayCardName(deck), locked: true, roundStartChips: []
     };
     if (modeId === 1) {
-      log('开桌：' + M.name + '，' + numPlayers + ' 人，每人 12 金币。');
-      log('地猴在座，由它坐庄（庄家每回合最后说话）。', 'warn');
-      log('你的目标只有一个：把地猴赢下来。它出局你立刻获胜，你出局立刻落败。', 'warn');
+      log('开桌：' + M.name + ' · ' + numPlayers + ' 人 · 每人 12 金币。');
+      log('目标：赢下地猴。它出局你获胜，你先出局你落败。', 'warn');
     } else {
       const flip = Math.random() < 0.5;
       S.mystery = { shuo: flip ? 'shape' : 'number', wang: flip ? 'number' : 'shape' };
       S.swapsLeft = 2;
-      log('开桌：' + M.name + '，' + numPlayers + ' 人，每人 12 金币。');
-      log('本轮由「庄 · 地猴」坐庄，执庄者是 ' + players[S.dealer].name + '。');
-      log('🌙 朔、🌕 望两套规则已经扣置在桌上，谁都不知道哪一个对应哪一套。', 'warn');
-      log('「庄 · 地猴」可以改判一次，把朔和望对调 —— 这件事写在明面上，但他改没改，只有他自己知道。', 'warn');
+      log('开桌：' + M.name + ' · ' + numPlayers + ' 人 · 每人 12 金币。');
+      log('执庄：' + players[S.dealer].name + '。');
+      log('🌙 朔 / 🌕 望 两套规则已扣置，庄家可改判一次。', 'warn');
     }
     S.bestRoundScore = 0;
     roLastScore = null; roLastComboKey = ''; roLastBest = null;
@@ -183,7 +182,7 @@
 
     log('第 ' + S.round + ' 回合 · ' + moonIcon() + ' ' + S.phaseLabel + '段｜奖池 ' + S.pot +
       ' 金币｜' + S.players[first].name + ' 先说话，庄家最后收尾。');
-    if (S.phaseHidden) log('本段规则还扣着：' + S.phaseLabel + '段到底比牌型还是比十六点，摊牌时才揭晓。', 'warn');
+    if (S.phaseHidden) log('本段规则扣置中，摊牌揭晓。', 'warn');
     record({
       kind: 'deal',
       text: '第 ' + S.round + ' 回合 · ' + moonIcon() + ' ' + S.phaseLabel + '段 开始发行',
@@ -848,15 +847,15 @@
     opts = opts || {};
     const d = document.createElement('div');
     if (!card) { d.className = 'card empty'; d.innerHTML = '<span>—</span>'; return d; }
-    d.className = 'card ' + seasonClass(card.season) + (card.type === '节日' ? ' festival' : '') + (opts.small ? ' small' : '');
-    const ptLabel = S.modeId === 1 ? '合计' : '日点';
-    const ptVal = S.modeId === 1 ? card.sum : card.dayPoint;
+    // 经典模式：牌面只留节气名 / 季序 / 农历日期，数字靠心算或查「牌库」
+    const plain = S.modeId === 1;
+    d.className = 'card ' + seasonClass(card.season) +
+      (card.type === '节日' ? ' festival' : '') + (opts.small ? ' small' : '') + (plain ? ' plain' : '');
     d.innerHTML =
       '<div class="c-head">' + esc(card.name) + '</div>' +
       '<div class="c-order">' + (card.order ? esc(card.season) + card.order : '彩') + '</div>' +
       '<div class="c-date">' + esc(card.sub) + '</div>' +
-      '<div class="c-digits">' + card.digits.join('·') + '</div>' +
-      '<div class="c-point">' + ptLabel + ' ' + ptVal + '</div>';
+      (plain ? '' : '<div class="c-digits">' + card.digits.join('·') + '</div>');
     if (opts.badge) {
       const b = document.createElement('div'); b.className = 'c-badge'; b.textContent = opts.badge; d.appendChild(b);
     }
@@ -911,7 +910,7 @@
     selectedMode = v || 2;
   } catch (e) { }
 
-  // 故事只属于「原 · 朔望月」：另外两个模式没有故事按钮。
+  // 故事只属于「经典 · 朔望月」：另外两个模式没有故事按钮。
   // 选中原版时，未看过 → 大按钮是故事、小按钮是进入；看过一次后大小互换（位置不变）。
   function updateMenuEnter() {
     const enter = $('menuEnterBtn'), story = $('menuStoryBtn');
@@ -946,7 +945,8 @@
       const p = document.createElement('p'); p.textContent = m.desc;
       const meta = document.createElement('div'); meta.className = 'mode-meta';
       meta.textContent = m.meta || (m.rounds + ' 回合 · 第 ' + m.switchAt + ' 回合换规则');
-      el.appendChild(h); el.appendChild(sub); el.appendChild(p); el.appendChild(meta);
+      const pick = document.createElement('div'); pick.className = 'mode-pick'; pick.textContent = '已选';
+      el.appendChild(h); el.appendChild(sub); el.appendChild(p); el.appendChild(meta); el.appendChild(pick);
       el.onclick = function () {
         selectedMode = m.id;
         try { localStorage.setItem('sw_lastMode', String(m.id)); } catch (e) { }
@@ -960,8 +960,51 @@
     updateMenuEnter();
   }
 
+  // ---- 新手引导：每个模式首次进入时给三步提示 ----
+  function tutKey(modeId) { return 'sw_tut_v1_' + modeId; }
+  function tutSeen(modeId) { try { return localStorage.getItem(tutKey(modeId)) === '1'; } catch (e) { return true; } }
+  function tutMark(modeId) { try { localStorage.setItem(tutKey(modeId), '1'); } catch (e) { } }
+
+  const TUT = {
+    1: [
+      ['看牌', '每回合你拿 1 张明牌 + 1 张暗牌，桌心还有 1 张公共牌。经典模式的牌面不写数字，按农历日期心算，或点顶部「牌库」查表。'],
+      ['下注', '轮到你时，点「跟注」跟上去；不想打就点「弃牌」。'],
+      ['比大小', '前 3 回合比牌型，第 4 回合起比谁更接近 16。点数超过 16 直接出局。']
+    ],
+    2: [
+      ['看牌', '节气牌上的数字可以跨牌型重复使用，一手牌能同时成立好几种牌型。'],
+      ['看时间轴', '公共牌就摆在你手牌旁边：过去两回合的牌能帮你凑 combo，下一回合的牌提前亮给你看。'],
+      ['下注', '前 3 回合比牌型，后 3 回合比谁更接近 20。顶栏的「朔 / 望」是扣置规则，庄家可能改判。']
+    ]
+  };
+
+  function showTutorial(modeId, onDone) {
+    const steps = TUT[modeId];
+    if (!steps) { if (onDone) onDone(); return; }
+    let i = 0;
+    function page() {
+      const last = i === steps.length - 1;
+      const dots = steps.map(function (_, k) { return '<i class="' + (k === i ? 'on' : '') + '"></i>'; }).join('');
+      const body = '<div class="tut">' +
+        '<div class="tut-no">第 ' + (i + 1) + ' / ' + steps.length + ' 步</div>' +
+        '<h3>' + steps[i][0] + '</h3>' +
+        '<p>' + steps[i][1] + '</p>' +
+        '<div class="tut-dots">' + dots + '</div></div>';
+      const btns = [];
+      if (i > 0) btns.push({ t: '上一步', fn: function () { i--; page(); }, cls: 'ghost' });
+      btns.push({
+        t: last ? '开始' : '下一步', cls: 'primary', fn: function () {
+          if (last) { tutMark(modeId); closeModal(); if (onDone) onDone(); }
+          else { i++; page(); }
+        }
+      });
+      modal('新手引导', body, btns);
+    }
+    page();
+  }
+
   function enterGame() {
-    // 衍时纪：走独立的闯关流程
+    // 登峰 · 衍时纪：走独立的闯关流程
     if (selectedMode === 3) {
       if (window.Rogue) {
         $('menu').style.display = 'none';
@@ -972,6 +1015,7 @@
     }
     const go = function () {
       startGame(selectedMode, parseInt($('playerCount').value, 10) || 3);
+      if (!tutSeen(selectedMode)) showTutorial(selectedMode);
     };
     if (selectedMode === 1 && !comicSeen()) showComic(go); else go();
   }
@@ -980,7 +1024,7 @@
     $('menu').style.display = 'none';
     $('table').style.display = 'block';
     $('modeName').textContent = S.mode.name;
-    // 故事只属于「原 · 朔望月」，另外两个模式顶栏也不显示
+    // 故事只属于「经典 · 朔望月」，另外两个模式顶栏也不显示
     if ($('storyBtn')) $('storyBtn').style.display = S.modeId === 1 ? '' : 'none';
   }
 
@@ -1001,9 +1045,9 @@
   function dealerChip() {
     if (S.dealer == null) return '';
     const nm = S.players[S.dealer].name;
-    const who = (S.modeId === 1 || nm === '地猴') ? '地猴执庄' : nm + ' 执庄';
-    return '<span class="chip m3 linkable" title="点击看说明" onclick="__tip(\'zhuang\')">庄 · 地猴（' +
-      esc(who) + '）</span>';
+    const suffix = (S.modeId === 1 || nm === '地猴') ? '' : '（' + esc(nm) + '执庄）';
+    return '<span class="chip m3 linkable" title="点击看说明" onclick="__tip(\'zhuang\')">庄 · 地猴' +
+      suffix + '</span>';
   }
   function applyTheme() {
     const cls = S.phaseLabel === '望' ? 'phase-wang' : 'phase-shuo';
@@ -1027,14 +1071,16 @@
       dealerChip();
     $('ruleChip').textContent = ruleChipText();
 
-    // 三时纵轴
+    // 公共牌 / 三时纵轴：就摆在自己手牌旁边，方便对照
     const tl = $('timeline'); tl.innerHTML = '';
     if (S.modeId === 2) {
+      $('tlHead').textContent = '时间轴';
       tl.appendChild(tlCol('过去', S.community.past, 'past'));
       tl.appendChild(tlCol('现在', [S.community.present].filter(Boolean), 'now'));
       tl.appendChild(tlCol('未来', [S.community.future].filter(Boolean), 'future'));
     } else {
-      tl.appendChild(tlCol('公共牌', [S.community.present].filter(Boolean), 'now'));
+      $('tlHead').textContent = '公共牌';
+      tl.appendChild(tlCol('', [S.community.present].filter(Boolean), 'now'));
     }
 
     // 对手
@@ -1079,7 +1125,7 @@
   function tlCol(label, cards, cls) {
     const d = document.createElement('div');
     d.className = 'tl-col ' + cls;
-    d.innerHTML = '<div class="tl-label">' + label + '</div>';
+    d.innerHTML = label ? '<div class="tl-label">' + label + '</div>' : '';
     const row = document.createElement('div'); row.className = 'tl-row';
     (cards && cards.length ? cards : [null]).forEach(c => row.appendChild(cardEl(c, { small: true })));
     d.appendChild(row);
@@ -1088,33 +1134,41 @@
 
   function ruleChipText() {
     if (S.modeId === 1) {
-      const me = S.players[0], mk = S.players[S.monkeyIdx];
-      return '目标：赢下地猴（你 ' + me.chips + ' 金币 ／ 地猴 ' + mk.chips + ' 金币）　·　' +
-        phaseText() + '　·　🌙 前 3 回合比牌型，🌕 第 4 回合起比十六点';
+      return '目标：赢下地猴';
     }
     const t = [];
-    t.push('🌙 朔位规则：' + (S.known.shuo ? ruleName(S.known.shuo) : '尚未揭晓'));
-    t.push('🌕 望位规则：' + (S.known.wang ? ruleName(S.known.wang) : '尚未揭晓'));
-    if (S.dealer === 0) t.push('你替「庄 · 地猴」执庄：' + (S.swapsLeft ? '还可以改判 ' + S.swapsLeft + ' 次' : '已无改判'));
-    else t.push('「庄 · 地猴」由 ' + S.players[S.dealer].name + ' 执庄，他随时可能改判');
+    t.push('🌙 ' + (S.known.shuo ? ruleName(S.known.shuo) : '未揭晓'));
+    t.push('🌕 ' + (S.known.wang ? ruleName(S.known.wang) : '未揭晓'));
+    if (S.dealer === 0) t.push('你执庄');
     return t.join('　·　');
   }
 
   let roLastScore = null, roLastComboKey = '', roLastBest = null;
+  let roOpen = false;
+
+  function applyReadoutState() {
+    const box = $('readout'), tog = $('roToggle');
+    if (box) box.classList.toggle('collapsed', !roOpen);
+    if (tog) tog.classList.toggle('open', roOpen);
+  }
 
   function renderReadout() {
-    const me = S.players[0], box = $('readout');
-    if (!me.open || me.out) { box.innerHTML = ''; return; }
+    const me = S.players[0], box = $('roBody'), tog = $('roToggle');
+    if (!me.open || me.out) {
+      if (box) box.innerHTML = '';
+      if (tog) tog.style.display = 'none';
+      return;
+    }
+    if (tog) tog.style.display = '';
     const own = [me.open, me.hole].filter(Boolean);
     const hidden = S.modeId === 2 && S.phaseHidden;
     const html = [];
-    let curScore = null, curComboList = [];
+    let curScore = null, curComboList = [], peekText = '';
     const linkHand = hh => '<span class="linkable" title="点击看说明" onclick="__tip(\'hand\',\'' + hh + '\')">' + hh + '</span>';
     const linkFest = fn => '<span class="linkable fest" title="点击看说明" onclick="__tip(\'fest\',\'' + fn + '\')">' + fn + '</span>';
 
     if (hidden) {
-      html.push('<div class="ro-line"><span class="ro-k">扣置中</span>' +
-        '本段规则未揭晓 —— 下面两套算法都可能生效，你不知道是哪一套。</div>');
+      html.push('<div class="ro-line"><span class="ro-k">扣置中</span>本段规则未揭晓。</div>');
     }
     const showShape = hidden || S.phaseRule === 'shape';
     const showNumber = hidden || S.phaseRule === 'number';
@@ -1132,7 +1186,7 @@
           (hands.length ? hands.map(linkHand).join('　') : '散牌') + '　<b>' + b.name + '</b></div>');
       } else {
         const r = E.scoreShape(all, pool, hands, combos, S.modeId);
-        curScore = r.score; curComboList = combos;
+        curScore = r.score; curComboList = combos; peekText = '得分 ' + r.score;
         html.push('<div class="ro-line"><span class="ro-k">成立牌型</span>' +
           (hands.length ? hands.map(linkHand).join('　') : '散牌') + '</div>');
         html.push('<div class="ro-line"><span class="ro-k">底分 × 倍率</span><b>' +
@@ -1154,12 +1208,19 @@
       const pubv = S.modeId === 1 ? S.community.present.sum : S.community.present.dayPoint;
       const L = S.mode.bustLine;
       const r = E.bestSixteen(own, S.community.present, S.modeId, L);
+      peekText = (r.bust ? '爆 ' : '') + r.total + ' 点';
       html.push('<div class="ro-line"><span class="ro-k">' + (hidden ? '？若为和' : '明+暗') + '</span><b>' + noPub + '</b> 点' +
         '　加公共牌(' + pubv + ') 则 <b class="' + ((noPub + pubv) > L ? 'bad' : 'good') + '">' + (noPub + pubv) + '</b> 点</div>');
       html.push('<div class="ro-line"><span class="ro-k">最佳取值</span><b class="big ' + (r.bust ? 'bad' : 'good') + '" id="roBest">' +
         r.total + '</b> 点　爆线 ' + L + (r.bust ? '　→ 爆，本回合出局' : (r.total === L ? '　→ 圆满封顶！' : '')) + '</div>');
     }
     box.innerHTML = html.join('');
+    if (tog) {
+      tog.innerHTML = '算分明细' +
+        (peekText ? '<span class="ro-peek">' + peekText + '</span>' : '') +
+        (roOpen ? ' ▾' : ' ▸');
+    }
+    applyReadoutState();
 
     // 读数区特效：得分变化时滚动、combo 变化时逐个弹出递升音、最佳取值变化时脉冲
     if (window.FX) {
@@ -1198,20 +1259,40 @@
     box.innerHTML = '';
     if (S.locked || me.out || me.folded || S.players[S.turn] !== me) return;
     const need = Math.max(0, S.currentBet - me.roundBet);
-    const mk = function (label, fn, cls, dis) {
+    const mk = function (label, fn, cls, dis, title) {
       const b = document.createElement('button');
       b.className = 'btn ' + (cls || ''); b.textContent = label;
-      b.disabled = !!dis; b.onclick = fn; box.appendChild(b);
+      b.disabled = !!dis; b.onclick = fn;
+      if (title) b.title = title;
+      box.appendChild(b);
     };
     mk('弃牌', humanFold, 'ghost');
-    mk('跟注 ' + need + ' 金币', humanCall, 'primary', need > me.chips);
-    mk('加注 +1', function () { humanRaise(1); }, '', me.chips <= need);
-    mk('加注 +2', function () { humanRaise(2); }, '', me.chips <= need || (S.modeId === 2 && me.idx === S.dealer));
-    mk('梭哈（押上全部 ' + me.chips + ' 金币）', humanAllin, 'danger', me.chips <= 0);
-    if (!me.usedCheat) mk('出千（1 次）', humanCheat, 'warn');
-    if (!me.usedLife) mk('赌命（1 次）', humanLife, 'life');
+    mk('跟注 ' + need, humanCall, 'primary', need > me.chips);
+    mk('加注', humanRaiseMenu, '', me.chips <= need);
+    mk('梭哈 ' + me.chips, humanAllin, 'danger', me.chips <= 0, '押上全部 ' + me.chips + ' 金币');
+    const hasTools = !me.usedCheat || !me.usedLife ||
+      (S.modeId === 2 && S.dealer === 0 && S.swapsLeft > 0 && S.phaseHidden);
+    if (hasTools) mk('手段 ⋯', showTools, 'warn');
+  }
+
+  function humanRaiseMenu() {
+    const me = S.players[0];
+    const need = Math.max(0, S.currentBet - me.roundBet);
+    const can2 = !(S.modeId === 2 && me.idx === S.dealer);
+    const btns = [{ t: '取消', fn: closeModal, cls: 'ghost' },
+      { t: '加注 +1', fn: function () { closeModal(); humanRaise(1); }, cls: 'primary' }];
+    if (can2) btns.push({ t: '加注 +2', fn: function () { closeModal(); humanRaise(2); } });
+    modal('加注', '<p class="tiny">当前注 ' + S.currentBet + '，你还差 ' + need + ' 金币。</p>', btns);
+  }
+
+  function showTools() {
+    const me = S.players[0];
+    const btns = [{ t: '取消', fn: closeModal, cls: 'ghost' }];
+    if (!me.usedCheat) btns.push({ t: '出千（1 次）', fn: function () { closeModal(); humanCheat(); }, cls: 'warn' });
+    if (!me.usedLife) btns.push({ t: '赌命（1 次）', fn: function () { closeModal(); humanLife(); }, cls: 'life' });
     if (S.modeId === 2 && S.dealer === 0 && S.swapsLeft > 0 && S.phaseHidden)
-      mk('改判朔望', humanSwap, 'warn');
+      btns.push({ t: '改判朔望', fn: function () { closeModal(); humanSwap(); }, cls: 'warn' });
+    modal('手段', '<p class="tiny">一整局限次使用，用掉就没有了。</p>', btns);
   }
 
   function renderShowdownModal() {
@@ -1249,8 +1330,7 @@
       html += '</div>';
     }
     html += '</div>';
-    modal('摊牌', html + '<p class="tiny" style="text-align:center;margin-top:16px">' +
-      '点牌型名或 combo 名可以看说明；想复盘每个人当时怎么想的，按下面的「回看牌局记录」。</p>', [
+    modal('摊牌', html, [
       { t: (S.modeId === 1 && S.outcome) ? '看最终结果' : '下一回合', fn: continueRound, cls: 'primary' },
       { t: '回看牌局记录', fn: showHistory, cls: 'ghost' },
       { t: '查看牌库', fn: showDeck, cls: 'ghost' }
@@ -1275,8 +1355,8 @@
 
   // ============================== 规则面板 ==============================
   function rulesHtml(modeId) {
-    // 衍时纪（闯关）的规则由 Rogue 自己生成
-    if (modeId === 3) return (window.Rogue && Rogue.rulesHtml) ? Rogue.rulesHtml() : '<div class="rules"><h3>衍时纪</h3><p>闯关模块未加载。</p></div>';
+    // 登峰 · 衍时纪（闯关）的规则由 Rogue 自己生成
+    if (modeId === 3) return (window.Rogue && Rogue.rulesHtml) ? Rogue.rulesHtml() : '<div class="rules"><h3>登峰 · 衍时纪</h3><p>闯关模块未加载。</p></div>';
     const classic = modeId === 1;
     const L = MODES[modeId].bustLine;
     const h = [];
@@ -1647,7 +1727,7 @@
     } else if (kind === 'zhuang') {
       body = '<p>「<b>庄 · 地猴</b>」是庄位的名字，不是固定 NPC。执庄的人<b>说话顺序排在最后</b>，' +
         '可以先看别人怎么下注再决定。</p>' +
-        (S.modeId === 2 ? '<p>在衍时 · 朔望月里，执庄的人还掌握朔望之谜的答案，并且可以改判一次。</p>' : '');
+        (S.modeId === 2 ? '<p>在进阶 · 朔望月里，执庄的人还掌握朔望之谜的答案，并且可以改判一次。</p>' : '');
     } else if (kind === 'bust') {
       body = '<p>望段里，数字<b>超过 ' + S.mode.bustLine + ' 点就爆</b>，本回合直接出局；' +
         '<b>正好 ' + S.mode.bustLine + ' 点</b>是最大的。</p>' +
@@ -1683,9 +1763,8 @@
     }
     grid += '</div>';
     modal('牌库（36 张）',
-      '<p class="decknote">已经露过面的是 <b>' + seenN + '</b> 张（金色高亮＝你手上的牌），还没出现的是 <b>' +
-      (36 - seenN) + '</b> 张。<br>' +
-      '<span class="tiny">注意：对手扣着的暗牌你看不见，所以它算在「还没出现」里 —— 这一栏本来就是给你算牌用的。</span></p>' +
+      '<p class="decknote">已经露面 <b>' + seenN + '</b> 张，未见 <b>' + (36 - seenN) + '</b> 张。' +
+      '<span class="tiny">对手的暗牌看不见，算在「未见」里。</span></p>' +
       grid,
       [{ t: '关闭', fn: closeModal, cls: 'primary' }]);
   }
@@ -1742,6 +1821,11 @@
     showMenu();
     if (window.Ach) Ach.init();
     $('quitBtn').onclick = function () { closeModal(); showMenu(); };
+    if ($('roToggle')) $('roToggle').onclick = function () {
+      roOpen = !roOpen;
+      applyReadoutState();
+      if (S) renderReadout();
+    };
     $('rulesBtn').onclick = function () { showRules(); };
     $('histBtn').onclick = function () { showHistory(); };
     $('deckBtn').onclick = function () { showDeck(); };
@@ -1781,6 +1865,7 @@
     showAch: showAch,
     showMenu: showMenu,
     showComic: showComic,
+    showTutorial: showTutorial,
     enterGame: enterGame,
     MODES: MODES,
     selectMode: function (id) { selectedMode = id; return selectedMode; },

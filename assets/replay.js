@@ -475,7 +475,7 @@
   }
 
   // ============================== 导出 ==============================
-  const SHORT_MODE = { 1: '原-朔望月', 2: '衍时-朔望月', 3: '衍时纪' };
+  const SHORT_MODE = { 1: '经典-朔望月', 2: '进阶-朔望月', 3: '登峰-衍时纪' };
 
   function fileName(run, fmt) {
     const d = new Date(run.createdAt || Date.now());

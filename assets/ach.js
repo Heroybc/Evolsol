@@ -23,7 +23,7 @@
     { id: 'moonless', name: '月晦无光', tint: '冬', desc: '见证一次全员爆点、奖池流局。' },
     { id: 'life_use', name: '背水一战', tint: '夏', desc: '第一次赌命。' },
     { id: 'life_win', name: '赌命成功', tint: '夏', desc: '赌命之下赢下回合，从所有人手里夺走金币。' },
-    { id: 'beat_monkey', name: '赢下地猴', tint: '夏', desc: '在「原 · 朔望月」里击败地猴。' },
+    { id: 'beat_monkey', name: '赢下地猴', tint: '夏', desc: '在「经典 · 朔望月」里击败地猴。' },
     { id: 'catch_cheat', name: '火眼金睛', tint: '夏', desc: '喝破一次出千，而且抓对了。' },
     { id: 'cheat_win', name: '十赌九诈', tint: '夏', desc: '出千之后还赢下了这个回合。' },
     { id: 'comeback', name: '逆天改命', tint: '秋', desc: '手上只剩 ≤3 枚金币时，赢下 ≥15 枚的大奖池。' },

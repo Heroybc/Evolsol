@@ -49,15 +49,23 @@
     </header>
 
     <div id="hud"></div>
-    <div id="timeline"></div>
     <div id="opponents"></div>
 
     <div id="me">
-      <div class="me-head" id="meHead">你的手牌</div>
-      <div id="myCards" class="card-row"></div>
+      <div class="me-col">
+        <div class="me-head" id="meHead">你的手牌</div>
+        <div id="myCards" class="card-row"></div>
+      </div>
+      <div class="me-col">
+        <div class="me-head" id="tlHead">公共牌</div>
+        <div id="timeline"></div>
+      </div>
     </div>
 
-    <div id="readout"></div>
+    <div id="readout" class="collapsed">
+      <button id="roToggle" class="ro-toggle" type="button">算分明细 ▸</button>
+      <div id="roBody"></div>
+    </div>
     <div id="actions"></div>
     <div id="log"></div>
   </section>
@@ -65,7 +73,7 @@
   <!-- ============ 衍时纪 · 闯关 ============ -->
   <section id="rogue" style="display:none">
     <header id="rTop">
-      <span class="r-title">🌙 衍时纪</span>
+      <span class="r-title">🌙 登峰 · 衍时纪</span>
       <span id="rProgress" class="r-progress"></span>
       <span id="rTarget" class="r-target"></span>
       <span id="rCoins" class="r-coins"></span>

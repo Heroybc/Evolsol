@@ -138,8 +138,9 @@ h1,h2,h3,.modename,.card .c-head{
 }
 .menu-head .btn{box-shadow:0 2px 12px rgba(0,0,0,.35)}
 
-#menuGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:20px}
-@media(max-width:900px){#menuGrid{grid-template-columns:1fr}}
+#menuGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+@media(max-width:1000px){#menuGrid{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}}
+@media(max-width:700px){#menuGrid{grid-template-columns:1fr}}
 .mode-card.m3::before{background:linear-gradient(180deg,#b07bd0,#7a4fa8)}
 .mode-card{
   background:var(--paper2);border:1.5px solid var(--line);border-radius:18px;
@@ -156,13 +157,24 @@ h1,h2,h3,.modename,.card .c-head{
 .mode-card:hover{transform:translateY(-5px);border-color:var(--gold);box-shadow:var(--shadow-lg)}
 .mode-card:hover::after{opacity:1}
 .mode-card.sel{
-  border-color:var(--gold);transform:translateY(-3px);
-  box-shadow:0 0 0 3px rgba(168,132,44,.22),var(--shadow-md);
-  background:linear-gradient(180deg,#fffdf3,var(--paper2) 60%);
+  border-color:var(--gold);border-width:2.5px;transform:translateY(-4px);
+  box-shadow:0 0 0 4px rgba(168,132,44,.16),0 18px 42px rgba(120,92,20,.18);
+  background:linear-gradient(180deg,#fffdf2,#faf1dc 65%);
 }
-.mode-card.sel h3::after{
-  content:"✓";margin-left:10px;color:var(--gold);font-size:1.1rem;
+/* 选中态：加粗文字 + 右上角「已选」标签 */
+.mode-card.sel h3{font-weight:800;color:#6b4f0e;letter-spacing:.16em}
+.mode-card.sel .mode-sub{color:#8a6410;font-weight:800}
+.mode-card.sel p{color:var(--ink);font-weight:600}
+.mode-card.sel .mode-meta{color:#7a5c14;font-weight:600}
+.mode-card.sel::before{width:9px}
+.mode-pick{
+  display:none;position:absolute;top:0;right:0;
+  background:linear-gradient(180deg,#d0a24a,var(--gold));
+  color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.18em;
+  padding:4px 15px 5px;border-radius:0 17px 0 12px;
+  box-shadow:0 2px 9px rgba(138,106,28,.38);
 }
+.mode-card.sel .mode-pick{display:block}
 .menu-enter{display:flex;gap:16px;justify-content:center;align-items:center;margin-top:2px}
 .btn.big{font-size:1.3rem;padding:15px 72px;letter-spacing:.32em;border-radius:13px}
 
@@ -214,10 +226,10 @@ h1,h2,h3,.modename,.card .c-head{
 .chip.m3{background:#e6eff6;border-color:#9dbbd4;color:#2e5578}
 
 /* ================= 三时纵轴 ================= */
-#timeline{display:flex;gap:18px;justify-content:center;margin:4px 0 20px;flex-wrap:wrap}
+#timeline{display:flex;gap:12px;justify-content:center;margin:0;flex-wrap:wrap}
 .tl-col{
   background:var(--paper2);border:1.5px solid var(--line);border-radius:14px;
-  padding:10px 16px 14px;min-width:118px;text-align:center;box-shadow:var(--shadow);
+  padding:8px 12px 12px;min-width:104px;text-align:center;box-shadow:var(--shadow);
   transition:transform .2s,box-shadow .2s,border-color .2s;
 }
 .tl-col.past{opacity:.72}
@@ -257,6 +269,8 @@ h1,h2,h3,.modename,.card .c-head{
 .card.small .c-digits{font-size:.72rem;padding:1px 5px;letter-spacing:.05em}
 .card .c-point{font-size:.68rem;color:var(--dim);margin-top:2px;letter-spacing:.05em}
 .card.small .c-point{font-size:.63rem;margin-top:1px}
+/* 经典模式：牌面不显示任何数字，内容垂直居中 */
+.card.plain{justify-content:center;gap:4px}
 
 /* 四季色边 */
 .card.s-spring{--ec:#4e9463;--ec2:rgba(63,128,80,.45);background:linear-gradient(180deg,#f2f9f3,#fffefa 55%)}
@@ -321,17 +335,27 @@ h1,h2,h3,.modename,.card .c-head{
 /* ================= 我方 ================= */
 #me{
   background:var(--paper2);border:1.5px solid var(--line);border-radius:14px;
-  padding:16px;margin-bottom:16px;box-shadow:var(--shadow);
+  padding:16px 20px;margin-bottom:16px;box-shadow:var(--shadow);
+  display:flex;gap:30px;justify-content:center;align-items:flex-start;flex-wrap:wrap;
 }
+.me-col{display:flex;flex-direction:column;align-items:center;min-width:0}
 .me-head{font-size:.84rem;letter-spacing:.34em;color:var(--dim);margin-bottom:12px;text-align:center}
 #myCards{min-height:140px}
 
-/* ================= 读数 ================= */
+/* ================= 读数（默认收起，点击展开） ================= */
 #readout{
   background:var(--paper2);border:1.5px solid var(--line);border-radius:14px;
-  padding:16px 20px;margin-bottom:16px;min-height:96px;box-shadow:var(--shadow);
-  border-left:5px solid var(--gold-soft);
+  margin-bottom:16px;box-shadow:var(--shadow);border-left:5px solid var(--gold-soft);
+  overflow:hidden;
 }
+.ro-toggle{
+  display:block;width:100%;text-align:left;background:none;border:0;cursor:pointer;
+  font-family:inherit;font-size:.86rem;letter-spacing:.12em;color:var(--dim);
+  padding:11px 20px;font-weight:600;
+}
+.ro-toggle:hover{color:var(--ink)}
+.ro-toggle .ro-peek{color:var(--gold);font-weight:700;letter-spacing:.04em;margin-left:12px}#roBody{padding:0 20px 15px}
+#readout.collapsed #roBody{display:none}
 .ro-line{font-size:1rem;margin-bottom:9px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .ro-k{color:var(--dim);font-size:.82rem;letter-spacing:.1em;min-width:96px;font-weight:600}
 .ro-line b{color:var(--gold);font-size:1.15rem}
@@ -398,17 +422,19 @@ h1,h2,h3,.modename,.card .c-head{
 }
 .mbox{
   background:var(--paper2);border:1.5px solid var(--line2);border-radius:18px;
-  padding:30px 34px;max-width:900px;width:100%;max-height:88vh;overflow-y:auto;
+  padding:26px 34px 22px;max-width:900px;width:100%;max-height:88vh;
+  display:flex;flex-direction:column;overflow:hidden;
   box-shadow:0 24px 70px rgba(40,30,10,.35);
   animation:mboxIn .22s ease-out;
 }
 @keyframes mboxIn{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
 .mbox h2{
-  margin:0 0 20px;font-size:1.7rem;letter-spacing:.3em;color:var(--ink);text-align:center;
-  padding-bottom:14px;border-bottom:1.5px solid var(--line);
+  margin:0 0 16px;font-size:1.7rem;letter-spacing:.3em;color:var(--ink);text-align:center;
+  padding-bottom:14px;border-bottom:1.5px solid var(--line);flex:0 0 auto;
 }
-.mbody{font-size:1rem;line-height:1.95}
-.mfoot{display:flex;gap:12px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+/* 正文单独滚动：标题和底部按钮永远可见，长规则不用翻到底才能关 */
+.mbody{font-size:1rem;line-height:1.95;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:8px}
+.mfoot{display:flex;gap:12px;justify-content:center;margin-top:16px;padding-top:14px;flex-wrap:wrap;flex:0 0 auto;border-top:1.5px solid var(--line)}
 
 /* 规则面板 */
 .rules h3{
@@ -461,6 +487,15 @@ h1,h2,h3,.modename,.card .c-head{
 .rules h3{margin:24px 0 10px}
 .rules li{margin-bottom:6px;line-height:1.8}
 .rules .tiny{line-height:1.75}
+
+/* 新手引导 */
+.tut{text-align:center;padding:6px 0 2px}
+.tut-no{font-size:.76rem;letter-spacing:.3em;color:var(--dim)}
+.tut h3{margin:12px 0 10px;font-size:1.4rem;letter-spacing:.14em;color:var(--ink)}
+.tut p{margin:0 auto;max-width:460px;line-height:1.95;color:var(--ink2);font-size:1rem}
+.tut-dots{display:flex;gap:8px;justify-content:center;margin-top:20px}
+.tut-dots i{width:7px;height:7px;border-radius:50%;background:var(--line2);transition:.2s}
+.tut-dots i.on{background:var(--gold);box-shadow:0 0 8px rgba(168,132,44,.6)}
 
 /* 摊牌 */
 .sd-title{text-align:center;color:var(--ink2);letter-spacing:.18em;margin-bottom:18px;font-size:.95rem}

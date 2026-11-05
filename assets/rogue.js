@@ -978,8 +978,7 @@
       '<div class="c-head">' + esc(card.name) + '</div>' +
       '<div class="c-order">' + (card.order ? esc(card.season) + card.order : '彩') + '</div>' +
       '<div class="c-date">' + esc(card.sub) + '</div>' +
-      '<div class="c-digits">' + card.digits.join('·') + '</div>' +
-      '<div class="c-point">日点 ' + card.dayPoint + '</div>';
+      '<div class="c-digits">' + card.digits.join('·') + '</div>';
     return d;
   }
   function seasonCls(s) { return { '春': 's-spring', '夏': 's-summer', '秋': 's-autumn', '冬': 's-winter' }[s] || ''; }
@@ -1391,7 +1390,7 @@
     if (window.Replay) {
       try {
         Replay.begin({
-          kind: 'rogue', modeId: 3, modeName: '衍时纪',
+          kind: 'rogue', modeId: 3, modeName: '登峰 · 衍时纪',
           rule: '8 大轮 × 3 关 · 4 次出牌 · 商店构筑',
           desc: '单人闯关：底分 × 倍率 × 令牌倍率，8 大轮共 24 关。战报会记下每一次出牌、弃牌与商店决策。'
         });
@@ -1405,7 +1404,7 @@
 
   function bindTop() {
     if ($('rRulesBtn')) $('rRulesBtn').onclick = function () {
-      panel('衍时纪 · 玩法规则', rulesHtml(), [{ t: '知道了', cls: 'primary', fn: closePanel }]);
+      panel('登峰 · 衍时纪 · 玩法规则', rulesHtml(), [{ t: '知道了', cls: 'primary', fn: closePanel }]);
     };
     if ($('rQuitBtn')) $('rQuitBtn').onclick = function () { closePanel(); if (cb.onExit) cb.onExit(); };
     if ($('rAchBtn')) $('rAchBtn').onclick = function () {
