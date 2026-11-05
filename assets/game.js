@@ -913,8 +913,9 @@
   // 故事只属于「经典 · 朔望月」：另外两个模式没有故事按钮。
   // 选中原版时，未看过 → 大按钮是故事、小按钮是进入；看过一次后大小互换（位置不变）。
   function updateMenuEnter() {
-    const enter = $('menuEnterBtn'), story = $('menuStoryBtn');
+    const enter = $('menuEnterBtn'), story = $('menuStoryBtn'), pc = $('pcWrap');
     if (!enter || !story) return;
+    if (pc) pc.style.display = selectedMode === 3 ? 'none' : '';
     if (selectedMode !== 1) {
       story.style.display = 'none';
       enter.className = 'btn primary big';
